@@ -10,7 +10,6 @@
  * – Corrects repeated code blocks
  * – Improves analytics and orders logic
  * – Makes file adapter safer
- * – Netlify Serverless Support
  */
 
 import Stripe from "stripe";
@@ -26,16 +25,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // --- CONFIG ---
-export const app = express();
+const app = express();
 const port = process.env.PORT || 3000;
 const DB_FILE = path.resolve("db.json");
 
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
-// Static frontend (Only used when running locally/VPS, not on Netlify)
+// Static frontend
 const distPath = path.resolve(__dirname, "../dist");
-if (!process.env.NETLIFY && fs.existsSync(distPath)) {
+if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
 }
 
@@ -106,9 +105,7 @@ class FileAdapter implements StorageAdapter {
   }
 
   private persist() {
-    // On Netlify (Lambda), file system is ephemeral, so we skip saving to disk 
-    // unless a proper DB is connected. This prevents errors.
-    if (process.env.DATABASE_URL || process.env.NETLIFY) return;
+    if (process.env.DATABASE_URL) return;
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2));
     } catch (e) {
@@ -326,15 +323,6 @@ app.get("/api/public-config/:checkoutId", async (req, res) => {
     currency: settings.currency,
     whatsappEnabled: settings.whatsappEnabled,
     whatsappNumber: settings.whatsappNumber,
-    manualPaymentEnabled: settings.manualPaymentEnabled,
-    manualPaymentLabel: settings.manualPaymentLabel,
-    manualPaymentInstructions: settings.manualPaymentInstructions,
-    bankTransferEnabled: settings.bankTransferEnabled,
-    bankTransferDetails: settings.bankTransferDetails,
-    bankTransferInstructions: settings.bankTransferInstructions,
-    cryptoEnabled: settings.cryptoEnabled,
-    cryptoOptions: settings.cryptoOptions,
-    cryptoWalletAddress: settings.cryptoWalletAddress
   });
 });
 
@@ -355,15 +343,10 @@ app.post("/api/create-payment-intent", async (req, res) => {
   const settings = await db.getSettings();
 
   for (const p of checkout.products) {
-      const currencyKey = (settings.currency || 'USD').toLowerCase();
-      let price = 0;
-      if (p.pricing?.oneTime?.enabled) {
-          price = p.pricing.oneTime.prices[currencyKey] !== undefined ? p.pricing.oneTime.prices[currencyKey] : p.pricing.oneTime.prices.usd;
-      }
-      total += price || 0;
+    const price = p.pricing?.oneTime?.prices?.usd;
+    if (!price) return res.status(400).json({ error: "Invalid product price" });
+    total += price;
   }
-
-  if (total <= 0) return res.status(400).json({ error: "Invalid Order Total" });
 
   try {
     const intent = await stripeInstance.paymentIntents.create({
@@ -391,15 +374,10 @@ app.post("/api/create-manual-order", async (req, res) => {
 
   const settings = await db.getSettings();
 
-  let total = 0;
-  for (const p of checkout.products) {
-      const currencyKey = (settings.currency || 'USD').toLowerCase();
-      let price = 0;
-      if (p.pricing?.oneTime?.enabled) {
-          price = p.pricing.oneTime.prices[currencyKey] !== undefined ? p.pricing.oneTime.prices[currencyKey] : p.pricing.oneTime.prices.usd;
-      }
-      total += price || 0;
-  }
+  let total = checkout.products.reduce(
+    (sum: number, p: any) => sum + p.pricing.oneTime.prices.usd,
+    0
+  );
 
   const orderId = "man_" + Math.random().toString(36).slice(2, 9);
 
@@ -416,17 +394,14 @@ app.post("/api/create-manual-order", async (req, res) => {
 });
 
 // -------------------------------------------
-// SEND FRONTEND (LOCAL ONLY)
+// SEND FRONTEND
 // -------------------------------------------
-if (!process.env.NETLIFY && fs.existsSync(distPath)) {
+if (fs.existsSync(distPath)) {
   app.get("*", (_, res) =>
     res.sendFile(path.join(distPath, "index.html"))
   );
 }
 
-// Only listen if not running in a serverless environment (Netlify)
-if (!process.env.NETLIFY) {
-  app.listen(port, () => {
-    console.log(`🚀 Server running at http://localhost:${port}`);
-  });
-}
+app.listen(port, () => {
+  console.log(`🚀 Server running at http://localhost:${port}`);
+});
