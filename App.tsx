@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, ReactNode, useRef } from 'react';
-import { HashRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Settings, 
@@ -24,7 +25,11 @@ import {
   Sun,
   Moon,
   Bell,
-  Timer
+  Timer,
+  ArrowRight,
+  Check,
+  Grid,
+  Tags
 } from 'lucide-react';
 import DashboardHome from './components/DashboardHome';
 import AnalyticsPage from './components/AnalyticsPage';
@@ -39,7 +44,9 @@ import PageTracker from './components/PageTracker';
 import HelpCenterPage from './components/HelpCenterPage';
 import GhostLinkPage from './components/GhostLinkPage'; 
 import GhostAnalyticsPage from './components/GhostAnalyticsPage'; 
-import { AppContext } from './AppContext'; 
+import AppsPage from './components/AppsPage';
+import DiscountsPage from './components/DiscountsPage';
+import { AppContext, UserProfile } from './AppContext'; 
 
 import { Language, CheckoutPage, StoreSettings, Theme } from './types';
 
@@ -108,18 +115,52 @@ interface NavGroup {
 }
 
 const Layout = ({ children }: LayoutProps) => {
-  const { isRTL, theme, setTheme } = React.useContext(AppContext);
+  const { isRTL, theme, setTheme, checkouts, user } = React.useContext(AppContext);
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   // Profile Dropdown State
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  // Notifications State
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const [notifications, setNotifications] = useState([
+    { id: 1, title: 'New Order #1024', message: 'You received a new payment of $49.00', time: '2m ago', read: false, type: 'order' },
+    { id: 2, title: 'Payout Processed', message: '$1,250.00 has been sent to your bank account', time: '1d ago', read: false, type: 'money' },
+    { id: 3, title: 'Black Friday Ready?', message: 'Check out our guide to prepare your store.', time: '2d ago', read: true, type: 'info' }
+  ]);
+  
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const markAllRead = () => {
+    setNotifications(notifications.map(n => ({ ...n, read: true })));
+  };
+
+  const handleNotificationClick = (id: number) => {
+     setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
+     navigate('/orders'); // Just a demo action
+     setIsNotificationsOpen(false);
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
+      }
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchFocused(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotificationsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -127,6 +168,33 @@ const Layout = ({ children }: LayoutProps) => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === '/' && !isSearchFocused && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+            e.preventDefault();
+            searchInputRef.current?.focus();
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSearchFocused]);
+
+  const filteredCheckouts = searchQuery.trim() 
+    ? checkouts.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 3) 
+    : [];
+
+  const handleSearchNavigation = (path: string) => {
+    navigate(path);
+    setSearchQuery('');
+    setIsSearchFocused(false);
+  };
+
+  const handleProfileNavigation = (path: string) => {
+    navigate(path);
+    setIsProfileOpen(false);
+  };
 
   // Navigation Structure
   const navGroups: NavGroup[] = [
@@ -141,9 +209,10 @@ const Layout = ({ children }: LayoutProps) => {
       title: 'Store',
       items: [
         { path: '/checkouts', label: 'Checkouts', icon: ShoppingBag }, 
-        { path: '/abandoned', label: 'Abandoned checkouts', icon: Timer, disabled: true, badge: 'Soon' },
         { path: '/orders', label: 'Orders', icon: ShoppingCart },
         { path: '/customers', label: 'Customers', icon: Users, badge: true },
+        { path: '/coupons', label: 'Coupons', icon: Tags },
+        { path: '/abandoned', label: 'Abandoned', icon: Timer, disabled: true, badge: 'Soon' },
       ]
     },
     {
@@ -157,6 +226,7 @@ const Layout = ({ children }: LayoutProps) => {
       title: 'Support',
       items: [
         { path: '/help', label: 'Help Center', icon: HelpCircle },
+        { path: '/apps', label: 'App Store', icon: Grid },
       ]
     }
   ];
@@ -328,18 +398,22 @@ const Layout = ({ children }: LayoutProps) => {
               <span className="text-gray-500 dark:text-gray-500 font-medium">Store</span>
               <span className="mx-2 text-gray-300 dark:text-gray-700">/</span>
               <span className="text-gray-900 dark:text-white font-semibold">
-                 {navGroups.flatMap(g => g.items).find(i => i.path === location.pathname)?.label || (location.pathname === '/settings' ? 'Settings' : location.pathname === '/help' ? 'Help Center' : 'Dashboard')}
+                 {navGroups.flatMap(g => g.items).find(i => i.path === location.pathname)?.label || (location.pathname === '/settings' ? 'Settings' : location.pathname === '/help' ? 'Help Center' : location.pathname === '/apps' ? 'App Store' : 'Dashboard')}
               </span>
             </h2>
           </div>
 
           {/* Centered Search Bar */}
-          <div className="hidden md:flex flex-1 max-w-md mx-auto relative group">
+          <div ref={searchRef} className="hidden md:flex flex-1 max-w-md mx-auto relative group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-gray-400 dark:text-gray-500 group-focus-within:text-[#f97316] transition-colors" />
+                  <Search className={`h-4 w-4 transition-colors ${isSearchFocused ? 'text-[#f97316]' : 'text-gray-400 dark:text-gray-500'}`} />
               </div>
               <input 
+                  ref={searchInputRef}
                   type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setIsSearchFocused(true)}
                   placeholder="Search checkouts, orders..." 
                   className="block w-full pl-10 pr-12 py-2 bg-gray-50 dark:bg-[#161616] border border-gray-200 dark:border-gray-800 rounded-full text-sm font-medium text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] transition-all"
               />
@@ -348,6 +422,48 @@ const Layout = ({ children }: LayoutProps) => {
                       /
                   </kbd>
               </div>
+
+              {/* Search Results Dropdown */}
+              {isSearchFocused && searchQuery && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl overflow-hidden z-50 animate-fade-in">
+                      <div className="p-2">
+                          {filteredCheckouts.length > 0 && (
+                              <div className="mb-2">
+                                  <div className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase px-3 py-1">Checkouts</div>
+                                  {filteredCheckouts.map(checkout => (
+                                      <button 
+                                          key={checkout.id}
+                                          onClick={() => handleSearchNavigation(`/checkouts/${checkout.id}`)}
+                                          className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
+                                      >
+                                          <div className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-800 overflow-hidden flex items-center justify-center text-gray-500">
+                                              {checkout.thumbnail && !checkout.thumbnail.includes('placeholder') ? <img src={checkout.thumbnail} className="w-full h-full object-cover" /> : <ShoppingBag size={14} />}
+                                          </div>
+                                          <span className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-[#f97316]">{checkout.name}</span>
+                                          <ArrowRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-gray-400" />
+                                      </button>
+                                  ))}
+                              </div>
+                          )}
+                          
+                          <div className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase px-3 py-1">Search In</div>
+                          <button 
+                              onClick={() => handleSearchNavigation(`/orders?q=${encodeURIComponent(searchQuery)}`)}
+                              className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
+                          >
+                              <div className="p-1.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-500"><ShoppingCart size={14} /></div>
+                              <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">Find <strong>"{searchQuery}"</strong> in Orders</span>
+                          </button>
+                          <button 
+                              onClick={() => handleSearchNavigation(`/customers?q=${encodeURIComponent(searchQuery)}`)}
+                              className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
+                          >
+                              <div className="p-1.5 rounded bg-green-50 dark:bg-green-900/20 text-green-500"><Users size={14} /></div>
+                              <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">Find <strong>"{searchQuery}"</strong> in Customers</span>
+                          </button>
+                      </div>
+                  </div>
+              )}
           </div>
           
           {/* Right Side Actions */}
@@ -362,25 +478,74 @@ const Layout = ({ children }: LayoutProps) => {
              </button>
 
              {/* Notifications */}
-             <button 
-                className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95 relative"
-                title="Notifications"
-             >
-                <Bell size={20} />
-                <span className="absolute top-2 right-2.5 w-2 h-2 bg-[#f97316] rounded-full ring-2 ring-white dark:ring-[#111111]"></span>
-             </button>
+             <div className="relative" ref={notifRef}>
+                <button 
+                    onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                    className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95 relative"
+                    title="Notifications"
+                >
+                    <Bell size={20} />
+                    {unreadCount > 0 && <span className="absolute top-2 right-2.5 w-2 h-2 bg-[#f97316] rounded-full ring-2 ring-white dark:ring-[#111111]"></span>}
+                </button>
 
-             {/* Profile Dropdown (Moved here) */}
+                {isNotificationsOpen && (
+                    <div className="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-xl shadow-xl z-[60] animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+                        <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-gray-900/50">
+                            <h3 className="text-sm font-bold text-gray-900 dark:text-white">Notifications</h3>
+                            {unreadCount > 0 && (
+                                <button onClick={markAllRead} className="text-[10px] font-bold text-[#f97316] hover:text-[#ea580c]">
+                                    Mark all read
+                                </button>
+                            )}
+                        </div>
+                        <div className="max-h-64 overflow-y-auto">
+                            {notifications.length === 0 ? (
+                                <div className="p-4 text-center text-sm text-gray-500">No new notifications.</div>
+                            ) : (
+                                notifications.map(notif => (
+                                    <div 
+                                        key={notif.id}
+                                        onClick={() => handleNotificationClick(notif.id)}
+                                        className={`p-3 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors relative ${!notif.read ? 'bg-orange-50/30 dark:bg-orange-900/10' : ''}`}
+                                    >
+                                        <div className="flex gap-3">
+                                            <div className={`w-2 h-2 mt-1.5 rounded-full shrink-0 ${!notif.read ? 'bg-[#f97316]' : 'bg-transparent'}`}></div>
+                                            <div>
+                                                <p className={`text-sm ${!notif.read ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}>
+                                                    {notif.title}
+                                                </p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
+                                                    {notif.message}
+                                                </p>
+                                                <p className="text-[10px] text-gray-400 mt-1">{notif.time}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                        <div className="p-2 border-t border-gray-100 dark:border-gray-800 text-center">
+                            <button className="text-xs font-medium text-gray-500 hover:text-gray-900 dark:hover:text-white">View all activity</button>
+                        </div>
+                    </div>
+                )}
+             </div>
+
+             {/* Profile Dropdown */}
              <div ref={profileRef} className="relative ml-2 pl-2 border-l border-gray-200 dark:border-gray-800">
                   <button 
                       onClick={() => setIsProfileOpen(!isProfileOpen)}
                       className="flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 p-1.5 pr-2 rounded-full transition-all active:scale-95 outline-none"
                   >
-                       <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-gray-900 to-gray-700 dark:from-gray-700 dark:to-gray-900 border-2 border-white dark:border-gray-800 shrink-0 shadow-sm flex items-center justify-center text-white font-serif italic font-bold">
-                          Y
+                       <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-gray-900 to-gray-700 dark:from-gray-700 dark:to-gray-900 border-2 border-white dark:border-gray-800 shrink-0 shadow-sm flex items-center justify-center text-white font-serif italic font-bold overflow-hidden">
+                          {user.avatar ? (
+                            <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                          ) : (
+                            user.name.charAt(0)
+                          )}
                        </div>
                        <div className="hidden md:flex flex-col items-start">
-                           <span className="text-sm font-bold text-gray-900 dark:text-white leading-none">Youssef B.</span>
+                           <span className="text-sm font-bold text-gray-900 dark:text-white leading-none">{user.name}</span>
                            <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400 leading-none mt-1">Admin</span>
                        </div>
                        <ChevronDown size={14} className="text-gray-400 hidden md:block" />
@@ -389,23 +554,26 @@ const Layout = ({ children }: LayoutProps) => {
                   {/* Dropdown Menu */}
                   {isProfileOpen && (
                       <div className="absolute top-full right-0 mt-2 w-60 bg-white dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-xl shadow-xl z-[60] p-1.5 animate-in fade-in zoom-in-95 duration-200 flex flex-col">
-                          <button className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg flex items-center gap-3 transition-all active:scale-95">
+                          <button onClick={() => handleProfileNavigation('/settings?tab=account')} className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg flex items-center gap-3 transition-all active:scale-95">
                               <User size={18} className="text-gray-400 dark:text-gray-500" /> Account
                           </button>
-                          <button className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg flex items-center gap-3 transition-all active:scale-95">
+                          <button onClick={() => handleProfileNavigation('/settings?tab=billing')} className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg flex items-center gap-3 transition-all active:scale-95">
                               <CreditCard size={18} className="text-gray-400 dark:text-gray-500" /> Plan & billing
                           </button>
-                          <button className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg flex items-center gap-3 transition-all active:scale-95">
+                          <button onClick={() => handleProfileNavigation('/settings?tab=portal')} className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg flex items-center gap-3 transition-all active:scale-95">
                               <Store size={18} className="text-gray-400 dark:text-gray-500" /> Customer portal
                           </button>
-                          <button className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg flex items-center gap-3 transition-all active:scale-95">
+                          <button onClick={() => handleProfileNavigation('/settings?tab=updates')} className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg flex items-center gap-3 transition-all active:scale-95">
                               <Sparkles size={18} className="text-gray-400 dark:text-gray-500" /> What's new
                           </button>
-                          <button className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg flex items-center gap-3 transition-all active:scale-95">
+                          <button onClick={() => handleProfileNavigation('/settings?tab=marketing')} className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg flex items-center gap-3 transition-all active:scale-95">
                               <Rocket size={18} className="text-gray-400 dark:text-gray-500" /> Affiliate program
                           </button>
                           <div className="h-px bg-gray-100 dark:bg-gray-800 my-1 mx-2"></div>
-                          <button className="w-full text-left px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg flex items-center gap-3 transition-all active:scale-95">
+                          <button 
+                            onClick={() => { setIsProfileOpen(false); alert("Logged out (Demo)"); }}
+                            className="w-full text-left px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg flex items-center gap-3 transition-all active:scale-95"
+                          >
                               <LogOut size={18} /> Sign out
                           </button>
                       </div>
@@ -444,6 +612,31 @@ export default function App() {
   // Global State
   const [checkouts, setCheckouts] = useState<CheckoutPage[]>(initialCheckouts);
   const [settings, setSettings] = useState<StoreSettings>(defaultSettings);
+  
+  // User Profile State
+  const [user, setUser] = useState<UserProfile>({
+    name: 'Youssef B.',
+    email: 'admin@whopify.io',
+    avatar: ''
+  });
+
+  // Load user from local storage
+  useEffect(() => {
+      const savedUser = localStorage.getItem('whopify_user');
+      if (savedUser) {
+          try {
+             setUser(JSON.parse(savedUser));
+          } catch(e) {}
+      }
+  }, []);
+
+  const updateUser = (updates: Partial<UserProfile>) => {
+      setUser(prev => {
+          const next = { ...prev, ...updates };
+          localStorage.setItem('whopify_user', JSON.stringify(next));
+          return next;
+      });
+  };
 
   // Hydrate from Backend on Mount with Fallback
   useEffect(() => {
@@ -525,6 +718,7 @@ export default function App() {
       appearance: 'dark',
       paymentMethods: settings.stripeEnabled ? ['stripe'] : [],
       products: [],
+      upsells: [],
       components: [
         { id: '1', type: 'header', title: 'Header', isVisible: true },
         { id: '2', type: 'product-summary', title: 'Product Summary', isVisible: true },
@@ -631,7 +825,9 @@ export default function App() {
       updateCheckout,
       deleteCheckout,
       settings,
-      saveSettings
+      saveSettings,
+      user,
+      updateUser
     }}>
       <HashRouter>
         <PageTracker /> 
@@ -657,6 +853,8 @@ export default function App() {
                 
                 <Route path="/orders" element={<OrdersPage />} />
                 <Route path="/customers" element={<CustomersPage />} />
+                <Route path="/coupons" element={<DiscountsPage />} />
+                <Route path="/apps" element={<AppsPage />} />
                 <Route path="/tools/ghost-link" element={<GhostLinkPage />} />
                 <Route path="/tools/ghost-analytics" element={<GhostAnalyticsPage />} />
                 <Route path="/help" element={<HelpCenterPage />} />

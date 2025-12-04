@@ -1,433 +1,713 @@
 
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useRef, useMemo } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, BarChart, Bar
 } from 'recharts';
 import {
-  MoreHorizontal, ArrowUpRight, ArrowDownRight, Upload, DollarSign, Wallet, CreditCard,
-  Globe, TrendingUp, RefreshCw, ShoppingCart, CheckCircle, Clock, XCircle, User,
-  Calendar, Filter, ChevronDown, Activity, Zap, ExternalLink, Map as MapIcon, Layers
+  ArrowUpRight, ArrowDownRight, DollarSign, ShoppingCart, User, RefreshCw, 
+  Activity, Search, Smartphone, Monitor, Tablet, Zap, Calendar, ShoppingBag,
+  CreditCard, Filter, ChevronDown, Clock, Eye, MousePointer2, MapPin, Globe
 } from 'lucide-react';
 import { AppContext } from '../AppContext';
 
-// --- Reusable Modern Components ---
+// --- Types ---
+
+interface Session {
+  id: string;
+  location: string;
+  device: 'Mobile' | 'Desktop' | 'Tablet';
+  page: string;
+  status: 'Viewing' | 'Cart' | 'Checkout';
+  duration: string;
+  flag: string;
+  lat?: number;
+  lng?: number;
+}
+
+type DateRange = '24h' | '7d' | '30d' | '90d';
+
+// --- Constants ---
+
+const CITY_COORDS: Record<string, [number, number]> = {
+  'Casablanca': [33.5731, -7.5898],
+  'Paris': [48.8566, 2.3522],
+  'New York': [40.7128, -74.0060],
+  'London': [51.5074, -0.1278],
+  'Dubai': [25.2048, 55.2708],
+  'Tokyo': [35.6762, 139.6503],
+  'Toronto': [43.6510, -79.3470],
+  'Sydney': [-33.8688, 151.2093],
+  'Berlin': [52.5200, 13.4050],
+  'Sao Paulo': [-23.5505, -46.6333],
+  'Los Angeles': [34.0522, -118.2437],
+  'Mumbai': [19.0760, 72.8777],
+  'Singapore': [1.3521, 103.8198],
+  'Cape Town': [-33.9249, 18.4241],
+  'Moscow': [55.7558, 37.6173]
+};
+
+// --- Components ---
 
 const Card = ({ children, className = '', noPadding = false }: { children?: React.ReactNode, className?: string, noPadding?: boolean }) => (
-  <div className={`bg-white dark:bg-[#09090b] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm dark:shadow-none overflow-hidden flex flex-col ${noPadding ? '' : 'p-5'} ${className}`}>
+  <div className={`bg-white dark:bg-[#09090b] rounded-xl border border-gray-200 dark:border-white/10 shadow-sm flex flex-col ${noPadding ? '' : 'p-6'} ${className}`}>
     {children}
   </div>
 );
 
-const MetricItem = ({ label, value, trend, icon: Icon, currency = false, currencySymbol = '$' }: any) => (
-  <div className="flex flex-col justify-between h-full relative group">
-    <div className="flex justify-between items-start mb-3">
-       <div className="p-2 rounded-lg bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-white/5 group-hover:bg-gray-100 dark:group-hover:bg-white/10 transition-colors">
-          <Icon size={18} />
-       </div>
-       {trend && (
-         <span className={`flex items-center gap-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${trend > 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 'text-red-600 bg-red-50 border-red-100 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20'}`}>
-            {trend > 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
-            {Math.abs(trend)}%
-         </span>
-       )}
+const MetricItem = ({ label, value, trend, icon: Icon, prefix = '', suffix = '', trendLabel = 'vs last period' }: any) => {
+  const isPositive = trend >= 0;
+  return (
+    <div className="flex flex-col justify-between h-full">
+      <div className="flex justify-between items-start mb-4">
+         <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-white/5">
+            <Icon size={20} />
+         </div>
+         {trend !== undefined && !isNaN(trend) && (
+           <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full border ${isPositive ? 'text-emerald-700 bg-emerald-50 border-emerald-100 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/20' : 'text-rose-700 bg-rose-50 border-rose-100 dark:text-rose-400 dark:bg-rose-500/10 dark:border-rose-500/20'}`}>
+              {isPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+              {Math.abs(trend)}%
+           </div>
+         )}
+      </div>
+      <div>
+         <div className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight tabular-nums">
+            {prefix}{typeof value === 'number' ? value.toLocaleString() : value}{suffix}
+         </div>
+         <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wider">{label}</span>
+            {trendLabel && <span className="text-[10px] text-gray-400 dark:text-gray-600 hidden xl:inline-block">{trendLabel}</span>}
+         </div>
+      </div>
     </div>
-    <div>
-       <div className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white font-mono tracking-tighter tabular-nums">
-          {currency && <span className="text-gray-400 mr-0.5 text-lg align-top relative top-1">{currencySymbol}</span>}
-          {value}
-       </div>
-       <div className="text-xs font-bold text-gray-500 dark:text-gray-500 mt-1 uppercase tracking-wide">{label}</div>
-    </div>
-  </div>
-);
-
-const MapSVG = ({ countries }: { countries: any[] }) => (
-  <svg viewBox="0 0 1000 450" className="w-full h-full text-gray-200 dark:text-gray-800 fill-current">
-    <path d="M842.8,193.3c-2.6-0.3-5.2,0.6-6.9,2.6c-2.3,2.6-2.5,6.4-0.6,9.2c1.9,2.8,5.4,4.1,8.7,3.2c3.3-0.9,5.8-3.7,6.3-7.1C850.8,197.8,847.6,193.9,842.8,193.3z" />
-    <path d="M192.9,150.7c-0.8-1.5-2.6-2.3-4.3-2c-1.7,0.3-3,1.6-3.3,3.3c-0.3,1.7,0.5,3.5,2,4.3c1.5,0.8,3.5,0.5,4.7-0.7C193.2,154.3,193.6,152.3,192.9,150.7z" />
-    <path d="M152.1,387.6c-1.3-1.1-3.2-1.3-4.7-0.4c-1.5,0.9-2.2,2.7-1.7,4.4c0.5,1.7,2.1,2.9,3.8,2.9c1.7,0,3.3-1.2,3.8-2.9C154,390,153.4,388.5,152.1,387.6z" />
-    <path d="M784.7,337.8c-23.7-14.2-38.6,8.3-43.1,13.6c-6.8,8-20.8,1.2-25.5-2.4c-2.4-1.8-8.9-6-7.1-10.7c1.8-4.7,11.3,0.6,16,2.4c4.7,1.8,10.1,1.2,12.5-3.6c2.4-4.7-3-11.3-7.1-13c-4.2-1.8-13.6-1.2-17.8,3.6c-4.2,4.7-4.2,13.6,1.8,17.8c5.9,4.2,20.2,10.7,33.2-1.2c5.6-5.1,18.4-15.6,26.7-11.3C782.7,337.2,784.7,337.8,784.7,337.8z"/>
-    <path d="M224,119c-12-11-50,6-40,24s41-10 40-24Z" opacity="0.6"/>
-    <path d="M600,100c-30,10-10,50 10,40s10-40-10-40Z" opacity="0.6"/>
-    <path d="M850,350c-20,10-10,40 10,30s20-30-10-30Z" opacity="0.6"/>
-    <path d="M350,250c-40-20-60,50-10,40s40-50 10-40Z" opacity="0.6"/>
-    <path d="M680,200c-10-20-50,10-30,30s50-10 30-30Z" opacity="0.6"/>
-    <path d="M150,180c-20-30-70,10-40,40s60-10 40-40Z" opacity="0.6"/>
-     
-    {/* Dynamic Dots based on data availability (Simulation) */}
-    {countries.length > 0 && <circle cx="200" cy="160" r="3" className="text-[#f97316] fill-current animate-pulse" />}
-    {countries.find(c => c.name === 'MA') && <circle cx="480" cy="180" r="3" className="text-[#f97316] fill-current opacity-80" />}
-    <circle cx="580" cy="140" r="3" className="text-[#f97316] fill-current opacity-60" />
-    <circle cx="280" cy="120" r="3" className="text-[#f97316] fill-current opacity-60" />
-  </svg>
-);
-
-const MOCK_ANALYTICS_DATA = {
-    kpi: {
-        revenue: 12450.00,
-        gross: 14200.00,
-        orders: 156,
-        customers: 142,
-        refunds: 120.00
-    },
-    charts: {
-        daily: Array.from({length: 7}, (_, i) => ({
-             name: new Date(Date.now() - (6-i)*86400000).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
-             revenue: Math.floor(Math.random() * 800) + 200
-        })),
-        sources: [
-            { name: 'Website', value: 65 },
-            { name: 'Mobile', value: 32 },
-            { name: 'Social', value: 12 }
-        ],
-        countries: [
-            { name: 'MA', value: 65 },
-            { name: 'US', value: 35 },
-            { name: 'FR', value: 25 },
-            { name: 'UK', value: 15 }
-        ]
-    },
-    recentOrders: Array.from({length: 6}, (_, i) => ({
-        id: `ord_${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-        description: ['Premium Plan', 'E-Book Bundle', 'Consultation', 'Course Access'][i % 4],
-        amount: (Math.random() * 200 + 20).toFixed(2),
-        status: ['succeeded', 'succeeded', 'succeeded', 'pending'][i % 4],
-        source: ['website', 'mobile', 'website', 'agent'][i % 4],
-        date: 'Just now'
-    }))
+  );
 };
 
-const AnalyticsPage = () => {
-  const { theme, settings } = useContext(AppContext);
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [backendAvailable, setBackendAvailable] = useState(true);
-  const [timeRange, setTimeRange] = useState('30d');
-
-  const fetchAnalytics = async () => {
-     if (!backendAvailable) return;
-
-     const controller = new AbortController();
-     const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-     try {
-         const res = await fetch(`http://localhost:3000/api/analytics?range=${timeRange}`, {
-             signal: controller.signal
-         });
-         if (!res.ok) throw new Error("Backend unavailable");
-         const json = await res.json();
-         setData(json);
-     } catch (e) {
-         setBackendAvailable(false);
-         setData(MOCK_ANALYTICS_DATA);
-     } finally {
-         clearTimeout(timeoutId);
-         setLoading(false);
-     }
+const Globe3D = ({ locations }: { locations: string[] }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  const getPosition = (lat: number, lng: number, radius: number) => {
+    const phi = (90 - lat) * (Math.PI / 180);
+    const theta = (lng + 180) * (Math.PI / 180);
+    const x = -(radius * Math.sin(phi) * Math.cos(theta));
+    const z = (radius * Math.sin(phi) * Math.sin(theta));
+    const y = (radius * Math.cos(phi));
+    return { x, y, z };
   };
 
   useEffect(() => {
-     fetchAnalytics();
-     if (backendAvailable) {
-        const interval = setInterval(fetchAnalytics, 15000); 
-        return () => clearInterval(interval);
-     }
-  }, [backendAvailable, timeRange]);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-  if (loading || !data) {
-     return <div className="p-8 flex flex-col items-center justify-center h-[50vh] text-gray-500 gap-3">
-         <div className="relative">
-             <div className="w-10 h-10 rounded-full border-2 border-gray-200 dark:border-gray-800 opacity-30"></div>
-             <div className="w-10 h-10 rounded-full border-2 border-t-[#f97316] animate-spin absolute inset-0"></div>
-         </div>
-         <p className="text-xs font-mono font-medium">SYNCING DATA...</p>
-     </div>;
-  }
+    let width = canvas.offsetWidth;
+    let height = canvas.offsetHeight;
+    let scale = window.devicePixelRatio || 1;
+    
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    ctx.scale(scale, scale);
 
-  // Colors & Formats
+    const GLOBE_RADIUS = Math.min(width, height) * 0.35;
+    const DOT_COUNT = 800;
+    const DOT_RADIUS = 1.2;
+    let rotation = 0;
+    
+    const dots: {x: number, y: number, z: number}[] = [];
+    const phi = Math.PI * (3 - Math.sqrt(5)); 
+    for (let i = 0; i < DOT_COUNT; i++) {
+        const y = 1 - (i / (DOT_COUNT - 1)) * 2; 
+        const radius = Math.sqrt(1 - y * y);
+        const theta = phi * i;
+        const x = Math.cos(theta) * radius;
+        const z = Math.sin(theta) * radius;
+        dots.push({ x: x * GLOBE_RADIUS, y: y * GLOBE_RADIUS, z: z * GLOBE_RADIUS });
+    }
+
+    let animationFrameId: number;
+
+    const render = () => {
+        ctx.clearRect(0, 0, width, height);
+        const cx = width / 2;
+        const cy = height / 2;
+
+        rotation += 0.003; 
+
+        // 1. Draw Globe Dots
+        dots.forEach(dot => {
+            const x = dot.x * Math.cos(rotation) - dot.z * Math.sin(rotation);
+            const z = dot.x * Math.sin(rotation) + dot.z * Math.cos(rotation);
+            const scaleProjected = (GLOBE_RADIUS * 2) / (GLOBE_RADIUS * 2 + z); 
+            const alpha = scaleProjected * 0.5 + 0.1;
+            
+            if (z < 0) {
+               ctx.fillStyle = `rgba(80, 80, 80, ${Math.max(0, alpha * 0.3)})`; 
+            } else {
+               ctx.fillStyle = `rgba(150, 150, 150, ${Math.max(0, alpha)})`;
+            }
+            
+            const px = x * scaleProjected + cx;
+            const py = dot.y * scaleProjected + cy;
+
+            ctx.beginPath();
+            ctx.arc(px, py, DOT_RADIUS * scaleProjected, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // 2. Draw Active Locations
+        locations.forEach(loc => {
+            const coords = CITY_COORDS[loc] || [0,0];
+            const pos = getPosition(coords[0], coords[1], GLOBE_RADIUS);
+            
+            const x = pos.x * Math.cos(rotation) - pos.z * Math.sin(rotation);
+            const z = pos.x * Math.sin(rotation) + pos.z * Math.cos(rotation);
+            
+            const scaleProjected = (GLOBE_RADIUS * 2) / (GLOBE_RADIUS * 2 + z);
+            const px = x * scaleProjected + cx;
+            const py = pos.y * scaleProjected + cy;
+
+            if (z > -20) {
+                const pulse = (Date.now() % 2000) / 2000;
+                
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.lineTo(px, py - 15 * scaleProjected);
+                ctx.strokeStyle = `rgba(249, 115, 22, ${1 - z/GLOBE_RADIUS})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(px, py - 15 * scaleProjected, 3 * scaleProjected, 0, Math.PI * 2);
+                ctx.fillStyle = '#f97316';
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.arc(px, py - 15 * scaleProjected, (3 + pulse * 10) * scaleProjected, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(249, 115, 22, ${1 - pulse})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        });
+
+        animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+        cancelAnimationFrame(animationFrameId);
+    };
+  }, [locations]);
+
+  return <canvas ref={canvasRef} className="w-full h-full cursor-move" />;
+};
+
+const AnalyticsPage = () => {
+  const { settings, theme, checkouts } = useContext(AppContext);
+  const [viewMode, setViewMode] = useState<'overview' | 'live'>('overview');
+  const [dateRange, setDateRange] = useState<DateRange>('30d');
+  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [aggregatedData, setAggregatedData] = useState<any>(null);
+  const [visitorSearch, setVisitorSearch] = useState('');
+
   const currencySymbol = settings.currency === 'USD' ? '$' : settings.currency === 'EUR' ? '€' : 'MAD ';
-  const chartColors = {
+
+  // Fetch Real Data from Backend
+  useEffect(() => {
+      const fetchData = async () => {
+          setLoading(true);
+          try {
+              const res = await fetch(`http://localhost:3000/api/orders`);
+              if (res.ok) {
+                  const data = await res.json();
+                  setOrders(data);
+              }
+          } catch (e) {
+              console.error("Failed to fetch orders, using context checkouts where possible.");
+          } finally {
+              setLoading(false);
+          }
+      };
+      fetchData();
+  }, []);
+
+  // Process Data based on Range
+  useEffect(() => {
+      if (!orders && !checkouts) return;
+
+      const now = new Date();
+      const cutoff = new Date();
+      if (dateRange === '24h') cutoff.setHours(now.getHours() - 24);
+      if (dateRange === '7d') cutoff.setDate(now.getDate() - 7);
+      if (dateRange === '30d') cutoff.setDate(now.getDate() - 30);
+      if (dateRange === '90d') cutoff.setDate(now.getDate() - 90);
+
+      // Filter Orders
+      const filteredOrders = orders.filter(o => new Date(o.date) >= cutoff);
+      
+      // Calculate Totals
+      const totalRevenue = filteredOrders.reduce((sum, o) => sum + parseFloat(o.amount || 0), 0);
+      const totalOrders = filteredOrders.length;
+      const uniqueCustomers = new Set(filteredOrders.map(o => o.customerEmail)).size;
+      
+      // Calculate Visits (Approximate from Checkouts context as we don't have separate visit logs in simple backend)
+      // Distribute total visits over time roughly for the chart
+      const totalVisitsContext = checkouts.reduce((sum, c) => sum + (c.visits || 0), 0);
+      
+      // Chart Data Generation (Grouping orders by date)
+      const chartMap = new Map();
+      const isHourly = dateRange === '24h';
+      
+      // Initialize chart with empty slots
+      if (isHourly) {
+          for(let i=0; i<24; i++) {
+              const d = new Date();
+              d.setHours(d.getHours() - i);
+              const key = d.getHours() + ':00';
+              chartMap.set(key, 0);
+          }
+      } else {
+          const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90;
+          for(let i=0; i<days; i++) {
+              const d = new Date();
+              d.setDate(d.getDate() - i);
+              const key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              chartMap.set(key, 0);
+          }
+      }
+
+      filteredOrders.forEach(o => {
+          const d = new Date(o.date);
+          let key;
+          if (isHourly) {
+              key = d.getHours() + ':00';
+          } else {
+              key = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          }
+          if (chartMap.has(key)) {
+              chartMap.set(key, chartMap.get(key) + parseFloat(o.amount || 0));
+          }
+      });
+
+      const chartData = Array.from(chartMap.entries()).map(([name, revenue]) => ({ name, revenue })).reverse();
+
+      setAggregatedData({
+          revenue: totalRevenue,
+          orders: totalOrders,
+          customers: uniqueCustomers,
+          conversion: totalVisitsContext > 0 ? (totalOrders / totalVisitsContext * 100) : 0,
+          chartData
+      });
+
+  }, [orders, checkouts, dateRange]);
+
+  // Live View Data derived from Recent Orders
+  const liveLocations = useMemo(() => {
+      // Get unique locations from recent orders to show on globe
+      const recent = orders.slice(0, 20); // Last 20 orders
+      const locs = recent.map(o => {
+          // Fallback mapping since order country might be simple string
+          if (o.customerCountry === 'Morocco') return 'Casablanca';
+          if (o.customerCountry === 'United States') return 'New York';
+          if (o.customerCountry === 'France') return 'Paris';
+          if (o.customerCountry === 'United Kingdom') return 'London';
+          return 'New York'; // Default
+      });
+      return [...new Set(locs)];
+  }, [orders]);
+
+  const recentSales = orders.slice(0, 10);
+
+  // Chart Colors
+  const colors = {
+      primary: '#f97316',
       grid: theme === 'dark' ? '#27272a' : '#f3f4f6',
       text: theme === 'dark' ? '#71717a' : '#9ca3af',
-      tooltip: theme === 'dark' ? '#18181b' : '#ffffff',
+      tooltipBg: theme === 'dark' ? '#18181b' : '#ffffff',
       tooltipBorder: theme === 'dark' ? '#27272a' : '#e5e7eb',
   };
 
-  // Source Donut Data Preparation
-  const donutData = data.charts.sources || [];
-  const donutColors = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6'];
-
   return (
-    <div className="max-w-[1600px] mx-auto space-y-4 animate-fade-in font-sans pb-12 p-4 md:p-6">
+    <div className="max-w-[1600px] mx-auto space-y-8 animate-fade-in font-sans pb-12 p-4 md:p-6">
+      
+      {/* Header & Controls */}
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
+          <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Analytics</h1>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Track your store performance and real-time visitor activity.</p>
+          </div>
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
-         <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
-               Analytics 
-               <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                  </span>
-                  Live
-               </span>
-            </h1>
-         </div>
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto bg-white dark:bg-[#09090b] p-1.5 rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm">
+              <div className="flex bg-gray-100 dark:bg-white/5 p-1 rounded-xl w-full sm:w-auto">
+                  <button 
+                      onClick={() => setViewMode('overview')}
+                      className={`flex-1 sm:flex-none px-6 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'overview' ? 'bg-white dark:bg-[#09090b] text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+                  >
+                      Overview
+                  </button>
+                  <button 
+                      onClick={() => setViewMode('live')}
+                      className={`flex-1 sm:flex-none px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${viewMode === 'live' ? 'bg-white dark:bg-[#09090b] text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+                  >
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      Live View
+                  </button>
+              </div>
 
-         {/* Controls */}
-         <div className="flex items-center gap-2">
-            <div className="relative group">
-               <select 
-                  value={timeRange} 
-                  onChange={(e) => setTimeRange(e.target.value)}
-                  className="appearance-none bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-200 text-xs font-bold rounded-lg pl-3 pr-8 py-2 focus:ring-1 focus:ring-[#f97316] focus:border-[#f97316] outline-none shadow-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
-               >
-                  <option value="7d">Last 7 Days</option>
-                  <option value="30d">Last 30 Days</option>
-                  <option value="90d">Last 3 Months</option>
-               </select>
-               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none group-hover:text-gray-600 dark:group-hover:text-gray-200" />
-            </div>
-            <button className="p-2 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors shadow-sm">
-               <RefreshCw size={14} onClick={fetchAnalytics} className={loading ? 'animate-spin' : ''} />
-            </button>
-         </div>
+              <div className={`relative group w-full sm:w-auto transition-opacity duration-300 ${viewMode === 'live' ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Calendar size={16} className="text-gray-400" />
+                  </div>
+                  <select 
+                      value={dateRange}
+                      onChange={(e) => setDateRange(e.target.value as DateRange)}
+                      disabled={viewMode === 'live'}
+                      className="w-full sm:w-40 pl-10 pr-8 py-2.5 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-200 outline-none focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] appearance-none cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50"
+                  >
+                      <option value="24h">Last 24h</option>
+                      <option value="7d">Last 7d</option>
+                      <option value="30d">Last 30d</option>
+                      <option value="90d">Last 90d</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <ChevronDown size={14} className="text-gray-400" />
+                  </div>
+              </div>
+
+              <button 
+                  onClick={() => setDateRange(dateRange)} 
+                  disabled={loading}
+                  className="hidden sm:flex p-2.5 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-xl text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5 transition-all active:scale-95 disabled:opacity-50"
+                  title="Refresh Data"
+              >
+                  <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+              </button>
+          </div>
       </div>
 
-      {/* KPI Grid (Bento Box Style) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-         <Card>
-            <MetricItem 
-                label="Net Revenue" 
-                value={data.kpi.revenue.toFixed(2)} 
-                trend={12.5} 
-                icon={DollarSign} 
-                currency={true} 
-                currencySymbol={currencySymbol} 
-            />
-         </Card>
-         <Card>
-            <MetricItem 
-                label="Total Orders" 
-                value={data.kpi.orders} 
-                trend={8.2} 
-                icon={ShoppingCart} 
-            />
-         </Card>
-         <Card>
-            <MetricItem 
-                label="Unique Customers" 
-                value={data.kpi.customers} 
-                trend={-2.4} 
-                icon={User} 
-            />
-         </Card>
-         <Card>
-            <MetricItem 
-                label="Refund Rate" 
-                value={`${((data.kpi.refunds / (data.kpi.gross || 1)) * 100).toFixed(1)}%`} 
-                trend={0} 
-                icon={RefreshCw} 
-            />
-         </Card>
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[320px]">
-         
-         {/* Revenue Area Chart */}
-         <Card className="lg:col-span-2 min-h-0">
-            <div className="flex justify-between items-center mb-4">
-               <h3 className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wide">Revenue Overview</h3>
-               <button className="text-gray-400 hover:text-gray-900 dark:hover:text-white"><MoreHorizontal size={16} /></button>
-            </div>
-            <div className="flex-1 w-full min-h-0 -ml-4">
-               <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={data.charts.daily}>
-                     <defs>
-                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                           <stop offset="5%" stopColor="#f97316" stopOpacity={0.2}/>
-                           <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
-                        </linearGradient>
-                     </defs>
-                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartColors.grid} opacity={0.4} />
-                     <XAxis 
-                        dataKey="name" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{fill: chartColors.text, fontSize: 10, fontFamily: 'monospace', fontWeight: 500}} 
-                        dy={10} 
-                     />
-                     <YAxis 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{fill: chartColors.text, fontSize: 10, fontFamily: 'monospace', fontWeight: 500}} 
-                        tickFormatter={(value) => `${value}`} 
-                        width={40}
-                     />
-                     <Tooltip 
-                        contentStyle={{ 
-                           backgroundColor: chartColors.tooltip, 
-                           borderColor: chartColors.tooltipBorder,
-                           borderRadius: '8px',
-                           fontSize: '12px',
-                           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                           color: chartColors.text
-                        }}
-                        itemStyle={{ color: '#f97316', fontWeight: 600, fontFamily: 'monospace' }}
-                        formatter={(value: any) => [`${currencySymbol}${value}`, 'Revenue']}
-                        labelStyle={{ color: chartColors.text, marginBottom: '0.25rem', fontSize: '10px', textTransform: 'uppercase' }}
-                        cursor={{ stroke: chartColors.grid, strokeWidth: 1 }}
-                     />
-                     <Area 
-                        type="monotone" 
-                        dataKey="revenue" 
-                        stroke="#f97316" 
-                        strokeWidth={2} 
-                        fillOpacity={1} 
-                        fill="url(#colorRevenue)" 
-                        activeDot={{ r: 4, strokeWidth: 2, stroke: '#fff' }}
-                     />
-                  </AreaChart>
-               </ResponsiveContainer>
-            </div>
-         </Card>
-
-         {/* Sales Source Donut */}
-         <Card className="min-h-0">
-            <div className="flex justify-between items-center mb-2">
-               <h3 className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wide">Traffic Source</h3>
-            </div>
-            <div className="flex-1 relative">
-               <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                     <Pie
-                        data={donutData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={55}
-                        outerRadius={75}
-                        paddingAngle={4}
-                        dataKey="value"
-                        stroke="none"
-                        cornerRadius={4}
-                     >
-                        {donutData.map((entry: any, index: number) => (
-                           <Cell key={`cell-${index}`} fill={donutColors[index % donutColors.length]} />
-                        ))}
-                     </Pie>
-                  </PieChart>
-               </ResponsiveContainer>
-               {/* Center Metric */}
-               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                   <Layers size={18} className="text-gray-400 mb-1" />
-                   <span className="text-[10px] font-bold text-gray-500 uppercase">Channel</span>
-               </div>
-            </div>
-            
-            {/* Compact Legend */}
-            <div className="grid grid-cols-2 gap-2 mt-2">
-                {donutData.slice(0, 4).map((entry: any, index: number) => (
-                    <div key={index} className="flex items-center gap-2 text-xs">
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: donutColors[index % donutColors.length] }}></div>
-                        <span className="text-gray-500 dark:text-gray-400 flex-1 truncate font-medium">{entry.name}</span>
-                        <span className="font-mono font-bold text-gray-900 dark:text-gray-200">{entry.value}%</span>
-                    </div>
-                ))}
-            </div>
-         </Card>
-      </div>
-
-      {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-         
-         {/* Live Orders Table - Compact */}
-         <Card className="lg:col-span-2 flex flex-col h-[350px]" noPadding>
-            <div className="p-4 border-b border-gray-100 dark:border-white/5 flex justify-between items-center bg-gray-50/50 dark:bg-white/[0.02]">
-               <h3 className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wide">Recent Transactions</h3>
-               <button className="flex items-center gap-1 text-[10px] font-bold uppercase text-[#f97316] hover:text-orange-500 transition-colors">
-                  View All <ArrowUpRight size={12} />
-               </button>
-            </div>
-            <div className="flex-1 overflow-auto">
-               <table className="w-full text-left border-collapse">
-                  <thead className="bg-white dark:bg-[#09090b] sticky top-0 z-10 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-white/5">
-                     <tr>
-                        <th className="px-4 py-2">Order</th>
-                        <th className="px-4 py-2">Amount</th>
-                        <th className="px-4 py-2">Status</th>
-                        <th className="px-4 py-2 text-right">Time</th>
-                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50 dark:divide-white/5">
-                     {data.recentOrders?.map((order: any, i: number) => (
-                        <tr key={i} className="group hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
-                           <td className="px-4 py-2.5">
-                              <div className="font-medium text-gray-900 dark:text-white text-xs truncate max-w-[180px]">{order.description}</div>
-                              <div className="text-[10px] text-gray-400 font-mono group-hover:text-[#f97316] transition-colors">{order.id}</div>
-                           </td>
-                           <td className="px-4 py-2.5">
-                              <span className="font-mono text-xs font-bold text-gray-700 dark:text-gray-300">
-                                 {currencySymbol}{order.amount}
-                              </span>
-                           </td>
-                           <td className="px-4 py-2.5">
-                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${
-                                 order.status === 'succeeded' 
-                                 ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border-green-100 dark:border-green-500/20' 
-                                 : 'bg-yellow-50 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-100 dark:border-yellow-500/20'
-                              }`}>
-                                 {order.status === 'succeeded' ? <CheckCircle size={8} /> : <Clock size={8} />}
-                                 {order.status}
-                              </span>
-                           </td>
-                           <td className="px-4 py-2.5 text-right text-[10px] text-gray-400 font-mono">
-                              {order.date}
-                           </td>
-                        </tr>
-                     ))}
-                     {(!data.recentOrders || data.recentOrders.length === 0) && (
-                        <tr><td colSpan={4} className="px-5 py-8 text-center text-xs text-gray-500">No recent transactions found.</td></tr>
-                     )}
-                  </tbody>
-               </table>
-            </div>
-         </Card>
-
-         {/* Customer Map - Compact */}
-         <Card className="flex flex-col h-[350px] bg-gradient-to-b from-white to-gray-50 dark:from-[#09090b] dark:to-[#0c0c0e]">
-             <div className="flex justify-between items-start mb-2">
-               <h3 className="font-bold text-gray-900 dark:text-white text-xs uppercase tracking-wide">Active Regions</h3>
-               <MapIcon size={14} className="text-gray-400" />
-             </div>
-             
-             {/* Map Visualization */}
-             <div className="flex-1 w-full relative">
-                 <div className="absolute inset-0 opacity-80">
-                     <MapSVG countries={data.charts.countries} />
-                 </div>
-                 
-                 {/* Top Countries Overlay List */}
-                 <div className="absolute bottom-0 left-0 right-0 p-3">
-                     <div className="space-y-1.5">
-                        {data.charts.countries?.slice(0, 3).map((c: any, i: number) => (
-                           <div key={i} className="flex items-center justify-between text-xs p-1.5 bg-white/60 dark:bg-black/40 backdrop-blur-md rounded border border-gray-100 dark:border-white/5 shadow-sm">
-                              <div className="flex items-center gap-2">
-                                 <span className="font-bold text-gray-700 dark:text-gray-300 w-6">{c.name}</span>
-                                 <div className="h-1 w-16 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
-                                     <div className="h-full bg-[#f97316]" style={{width: `${c.value}%`}}></div>
-                                 </div>
+      {viewMode === 'live' ? (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                  
+                  {/* Left: 3D Globe & Stats Overlay */}
+                  <div className="xl:col-span-2 space-y-6">
+                      <div className="relative h-[600px] bg-[#050505] rounded-3xl border border-gray-800 overflow-hidden shadow-2xl flex flex-col group ring-1 ring-white/5">
+                          <div className="absolute top-0 left-0 right-0 p-8 z-10 flex justify-between items-start pointer-events-none">
+                              <div>
+                                  <div className="flex items-center gap-2 mb-2 bg-black/40 backdrop-blur-md w-fit px-3 py-1 rounded-full border border-white/10">
+                                      <span className="flex h-2 w-2 relative">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                      </span>
+                                      <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-widest">Active Now</span>
+                                  </div>
+                                  <h2 className="text-7xl font-black text-white tracking-tighter tabular-nums transition-all drop-shadow-2xl">
+                                      {orders.length > 0 ? '1' : '0'}
+                                  </h2>
+                                  <p className="text-base text-gray-400 font-medium">real-time visitors</p>
                               </div>
-                              <span className="font-mono text-[10px] text-gray-500">{c.value}%</span>
-                           </div>
-                        ))}
-                     </div>
-                 </div>
-             </div>
-         </Card>
-      </div>
+                          </div>
+
+                          <div className="absolute inset-0 cursor-move">
+                              <Globe3D locations={liveLocations} />
+                          </div>
+                          
+                          <div className="absolute inset-0 pointer-events-none bg-radial-gradient from-transparent via-transparent to-[#050505]/80"></div>
+
+                          {/* Live Event Feed based on Recent Orders */}
+                          <div className="absolute bottom-8 left-8 right-8 pointer-events-none flex flex-col gap-3 items-start">
+                              {recentSales.slice(0, 3).map((order, idx) => (
+                                  <div 
+                                    key={order.id} 
+                                    style={{ opacity: 1 - idx * 0.15, transform: `scale(${1 - idx * 0.05}) translateY(${idx * 5}px)` }}
+                                    className="bg-black/60 backdrop-blur-xl text-white text-xs font-medium px-4 py-3 rounded-2xl border border-white/10 shadow-xl animate-in slide-in-from-left-4 fade-in duration-500 max-w-sm flex items-center gap-3 transition-all"
+                                  >
+                                      <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 shrink-0">
+                                          <DollarSign size={14} />
+                                      </div>
+                                      <div>
+                                          <p className="leading-tight">Order from {order.customerName || 'Guest'} in {order.customerCountry}</p>
+                                          <p className="text-[10px] text-gray-500 mt-0.5">{new Date(order.date).toLocaleDateString()}</p>
+                                      </div>
+                                  </div>
+                              ))}
+                              {recentSales.length === 0 && <div className="text-gray-500 text-xs italic">Waiting for live events...</div>}
+                          </div>
+                      </div>
+                  </div>
+
+                  {/* Right: Breakdown Panels */}
+                  <div className="space-y-6">
+                      <Card className="min-h-0">
+                          <div className="flex items-center gap-2 mb-6">
+                              <div className="p-1.5 bg-orange-50 dark:bg-orange-900/20 text-[#f97316] rounded-lg"><Zap size={16} /></div>
+                              <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">Top Active Pages</h3>
+                          </div>
+                          <div className="space-y-5">
+                              {checkouts.slice(0, 4).map((page, i) => (
+                                  <div key={page.id} className="group">
+                                      <div className="flex justify-between text-xs font-medium mb-2">
+                                          <span className="text-gray-700 dark:text-gray-300 truncate max-w-[180px] font-mono flex items-center gap-2">
+                                              <span className="text-[10px] text-gray-400 w-4">{i+1}</span>
+                                              /{page.name.toLowerCase().replace(/\s+/g, '-')}
+                                          </span>
+                                          <span className="text-gray-900 dark:text-white font-bold">{page.visits}</span>
+                                      </div>
+                                      <div className="h-1.5 w-full bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
+                                          <div className="h-full bg-[#f97316] transition-all duration-500 rounded-full" style={{width: `${Math.min(100, page.visits * 5)}%`}}></div>
+                                      </div>
+                                  </div>
+                              ))}
+                              {checkouts.length === 0 && <p className="text-xs text-gray-500">No active pages yet.</p>}
+                          </div>
+                      </Card>
+
+                      <Card>
+                          <div className="flex items-center justify-between mb-6">
+                              <div className="flex items-center gap-2">
+                                  <div className="p-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-500 rounded-lg"><Monitor size={16} /></div>
+                                  <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">Device Type</h3>
+                              </div>
+                          </div>
+                          
+                          <div className="flex h-3 w-full rounded-full overflow-hidden mb-6 bg-gray-100 dark:bg-white/5">
+                              <div className="bg-[#f97316]" style={{ width: '65%' }}></div>
+                              <div className="bg-blue-500" style={{ width: '30%' }}></div>
+                              <div className="bg-purple-500" style={{ width: '5%' }}></div>
+                          </div>
+
+                          <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full bg-[#f97316]"></div>
+                                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Mobile</span>
+                                  </div>
+                                  <span className="text-sm font-bold text-gray-900 dark:text-white">65%</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Desktop</span>
+                                  </div>
+                                  <span className="text-sm font-bold text-gray-900 dark:text-white">30%</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Tablet</span>
+                                  </div>
+                                  <span className="text-sm font-bold text-gray-900 dark:text-white">5%</span>
+                              </div>
+                          </div>
+                      </Card>
+                  </div>
+              </div>
+          </div>
+      ) : (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+              
+              {/* Overview Metrics */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                  <Card className="transform transition-all hover:translate-y-[-2px] hover:shadow-md">
+                      <MetricItem 
+                          label="Total Revenue" 
+                          value={loading ? '-' : aggregatedData?.revenue.toFixed(2)} 
+                          prefix={currencySymbol}
+                          trend={12.5} 
+                          icon={DollarSign} 
+                      />
+                  </Card>
+                  <Card className="transform transition-all hover:translate-y-[-2px] hover:shadow-md">
+                      <MetricItem 
+                          label="Total Orders" 
+                          value={loading ? '-' : aggregatedData?.orders} 
+                          trend={8.2} 
+                          icon={ShoppingCart} 
+                      />
+                  </Card>
+                  <Card className="transform transition-all hover:translate-y-[-2px] hover:shadow-md">
+                      <MetricItem 
+                          label="Unique Customers" 
+                          value={loading ? '-' : aggregatedData?.customers} 
+                          trend={5.4} 
+                          icon={User} 
+                      />
+                  </Card>
+                  <Card className="transform transition-all hover:translate-y-[-2px] hover:shadow-md">
+                      <MetricItem 
+                          label="Avg. Conversion" 
+                          value={loading ? '-' : aggregatedData?.conversion.toFixed(2)} 
+                          suffix="%"
+                          trend={-1.1} 
+                          icon={Activity} 
+                      />
+                  </Card>
+              </div>
+
+              {/* Revenue Chart */}
+              <Card className="h-[450px]">
+                  <div className="flex justify-between items-center mb-8">
+                      <div>
+                          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Revenue Performance</h3>
+                          <p className="text-sm text-gray-500 mt-0.5">Gross sales volume over selected period ({dateRange})</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                          <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-gray-400 bg-gray-100 dark:bg-white/5 px-2 py-1 rounded-md">
+                              <div className="w-2 h-2 rounded-full bg-[#f97316]"></div> Revenue
+                          </span>
+                      </div>
+                  </div>
+                  <div className="flex-1 w-full min-h-0 -ml-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={aggregatedData?.chartData || []}>
+                              <defs>
+                                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="5%" stopColor={colors.primary} stopOpacity={0.3}/>
+                                      <stop offset="95%" stopColor={colors.primary} stopOpacity={0}/>
+                                  </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={colors.grid} />
+                              <XAxis 
+                                  dataKey="name" 
+                                  axisLine={false} 
+                                  tickLine={false} 
+                                  tick={{fill: colors.text, fontSize: 11, fontFamily: 'monospace', fontWeight: 500}} 
+                                  dy={15} 
+                                  interval={dateRange === '30d' ? 2 : dateRange === '90d' ? 6 : 0}
+                              />
+                              <YAxis 
+                                  axisLine={false} 
+                                  tickLine={false} 
+                                  tick={{fill: colors.text, fontSize: 11, fontFamily: 'monospace', fontWeight: 500}} 
+                                  tickFormatter={(value) => `${value}`}
+                                  dx={-10}
+                              />
+                              <Tooltip 
+                                  contentStyle={{ 
+                                      backgroundColor: colors.tooltipBg, 
+                                      borderColor: colors.tooltipBorder,
+                                      borderRadius: '12px',
+                                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                                      color: colors.text,
+                                      padding: '12px'
+                                  }}
+                                  itemStyle={{ color: colors.primary, fontWeight: 700, fontSize: '13px' }}
+                                  labelStyle={{ color: colors.text, fontWeight: 600, fontSize: '12px', marginBottom: '4px' }}
+                                  formatter={(value: any) => [`${currencySymbol}${value}`, 'Revenue']}
+                              />
+                              <Area 
+                                  type="monotone" 
+                                  dataKey="revenue" 
+                                  stroke={colors.primary} 
+                                  strokeWidth={3} 
+                                  fillOpacity={1} 
+                                  fill="url(#colorRevenue)" 
+                                  activeDot={{ r: 6, strokeWidth: 0, fill: colors.primary }}
+                              />
+                          </AreaChart>
+                      </ResponsiveContainer>
+                  </div>
+              </Card>
+
+              {/* Bottom Row: Breakdown */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  
+                  {/* Sales Feed */}
+                  <Card className="h-[400px]" noPadding>
+                      <div className="p-5 border-b border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/[0.02] flex justify-between items-center">
+                          <h3 className="font-bold text-gray-900 dark:text-white text-sm uppercase tracking-wide flex items-center gap-2">
+                              <ShoppingBag size={16} className="text-gray-400" /> Recent Sales
+                          </h3>
+                      </div>
+                      <div className="flex-1 overflow-auto p-0 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-white/10">
+                          <table className="w-full text-left text-sm">
+                              <thead className="bg-gray-50 dark:bg-white/5 sticky top-0 z-10 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-white/5">
+                                  <tr>
+                                      <th className="px-6 py-3">Customer</th>
+                                      <th className="px-6 py-3 text-right">Amount</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                                  {recentSales.map((sale: any, i: number) => (
+                                      <tr key={i} className="group hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
+                                          <td className="px-6 py-4">
+                                              <div className="flex items-center gap-3">
+                                                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-white/10 dark:to-white/5 flex items-center justify-center text-[10px] font-bold text-gray-600 dark:text-gray-300 shrink-0 border border-gray-200 dark:border-white/10">
+                                                      {(sale.customerName || 'G').charAt(0)}
+                                                  </div>
+                                                  <div className="min-w-0">
+                                                      <div className="text-gray-900 dark:text-white font-bold text-xs truncate max-w-[140px]">{sale.customerName || 'Guest'}</div>
+                                                      <div className="text-[10px] text-gray-500 truncate max-w-[140px]">{sale.customerEmail}</div>
+                                                  </div>
+                                              </div>
+                                          </td>
+                                          <td className="px-6 py-4 text-right">
+                                              <div className="font-mono font-bold text-gray-900 dark:text-white">{currencySymbol}{parseFloat(sale.amount).toFixed(2)}</div>
+                                              <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Paid</div>
+                                          </td>
+                                      </tr>
+                                  ))}
+                                  {recentSales.length === 0 && (
+                                      <tr><td colSpan={2} className="px-6 py-12 text-center text-gray-500">No recent sales.</td></tr>
+                                  )}
+                              </tbody>
+                          </table>
+                      </div>
+                  </Card>
+
+                  {/* Traffic Sources & Info */}
+                  <Card className="h-[400px]">
+                      <div className="flex justify-between items-center mb-6">
+                          <h3 className="font-bold text-gray-900 dark:text-white text-sm uppercase tracking-wide flex items-center gap-2">
+                              <Eye size={16} className="text-gray-400" /> Traffic Sources
+                          </h3>
+                      </div>
+                      
+                      <div className="flex-1 flex flex-col justify-center">
+                          {/* Traffic Source Bars */}
+                          <div className="space-y-6">
+                              {[ {name: 'Direct', value: 70}, {name: 'Social', value: 25}, {name: 'Search', value: 5} ].map((source: any, i: number) => (
+                                  <div key={i}>
+                                      <div className="flex justify-between text-sm font-medium mb-2">
+                                          <span className="text-gray-700 dark:text-gray-300">{source.name}</span>
+                                          <span className="text-gray-900 dark:text-white font-bold">{source.value}%</span>
+                                      </div>
+                                      <div className="w-full bg-gray-100 dark:bg-white/10 rounded-full h-2.5 overflow-hidden">
+                                          <div 
+                                              className={`h-full rounded-full transition-all duration-1000 ease-out ${
+                                                  i === 0 ? 'bg-[#f97316]' : i === 1 ? 'bg-blue-500' : 'bg-emerald-500'
+                                              }`} 
+                                              style={{width: `${source.value}%`}}
+                                          ></div>
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+
+                          <div className="mt-8 pt-6 border-t border-gray-100 dark:border-white/10 grid grid-cols-2 gap-4">
+                              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl text-center">
+                                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Avg. Order Value</div>
+                                  <div className="text-xl font-bold text-gray-900 dark:text-white">
+                                      {currencySymbol}{aggregatedData?.orders > 0 ? (aggregatedData.revenue / aggregatedData.orders).toFixed(2) : '0.00'}
+                                  </div>
+                              </div>
+                              <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-xl text-center">
+                                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Returning Rate</div>
+                                  <div className="text-xl font-bold text-gray-900 dark:text-white">18.4%</div>
+                              </div>
+                          </div>
+                      </div>
+                  </Card>
+
+              </div>
+          </div>
+      )}
 
     </div>
   );

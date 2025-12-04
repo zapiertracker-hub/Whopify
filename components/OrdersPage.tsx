@@ -1,15 +1,25 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { Search, Download, CheckCircle, Clock, XCircle, RefreshCw } from 'lucide-react';
 import { AppContext } from '../AppContext';
+import { useSearchParams } from 'react-router-dom';
 
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 
 const OrdersPage = () => {
   const { ghostMode } = useContext(AppContext);
   const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get('q') || '');
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Update search if URL changes
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q !== null) {
+        setSearch(q);
+    }
+  }, [searchParams]);
 
   // Mock Data Generator
   const generateMockOrders = () => {

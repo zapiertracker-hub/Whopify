@@ -1,8 +1,10 @@
+
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import { AppContext } from '../AppContext';
 import { 
   Plus, Search, Edit2, Copy, ExternalLink, 
-  TrendingUp, X, Trash2, Edit, Check, Layout, AlertTriangle, MoreVertical 
+  TrendingUp, X, Trash2, Edit, Check, Layout, AlertTriangle, MoreVertical,
+  MousePointer2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { CheckoutPage } from '../types';
@@ -98,11 +100,11 @@ const ProductManager = () => {
   const getGradient = (id: string) => {
     // These gradients fade to transparent or card bg color
     const gradients = [
-      'bg-gradient-to-bl from-orange-600 via-orange-900 to-transparent dark:to-[#111111]',
-      'bg-gradient-to-bl from-blue-600 via-blue-900 to-transparent dark:to-[#111111]',
-      'bg-gradient-to-bl from-purple-600 via-purple-900 to-transparent dark:to-[#111111]',
-      'bg-gradient-to-bl from-emerald-600 via-emerald-900 to-transparent dark:to-[#111111]',
-      'bg-gradient-to-bl from-rose-600 via-rose-900 to-transparent dark:to-[#111111]',
+      'bg-gradient-to-tr from-orange-400 to-orange-600',
+      'bg-gradient-to-tr from-blue-400 to-blue-600',
+      'bg-gradient-to-tr from-purple-400 to-purple-600',
+      'bg-gradient-to-tr from-emerald-400 to-emerald-600',
+      'bg-gradient-to-tr from-rose-400 to-rose-600',
     ];
     const charCode = id.charCodeAt(id.length - 1);
     return gradients[charCode % gradients.length];
@@ -162,19 +164,18 @@ const ProductManager = () => {
         </div>
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 pb-12">
+      {/* List View */}
+      <div className="space-y-4 pb-12">
         
-        {/* Create New Card */}
+        {/* Create New Row */}
         <div 
           onClick={() => setIsModalOpen(true)}
-          className="group border border-dashed border-gray-300 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/20 rounded-3xl flex flex-col items-center justify-center p-8 cursor-pointer hover:bg-white dark:hover:bg-gray-900/60 hover:border-[#f97316]/50 transition-all active:scale-95 min-h-[380px] hover:shadow-lg dark:hover:shadow-none"
+          className="group border border-dashed border-gray-300 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/20 rounded-xl flex items-center p-4 cursor-pointer hover:bg-white dark:hover:bg-gray-900/60 hover:border-[#f97316]/50 transition-all active:scale-95 shadow-sm hover:shadow-md"
         >
-          <div className="w-20 h-20 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg dark:shadow-2xl border border-gray-200 dark:border-gray-700 group-hover:border-[#f97316]/30 group-hover:shadow-[#f97316]/20">
-            <Plus size={36} className="text-gray-400 dark:text-gray-500 group-hover:text-[#f97316] transition-colors" />
+          <div className="w-10 h-10 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center mr-4 shadow-sm border border-gray-200 dark:border-gray-700 group-hover:border-[#f97316]/30 transition-colors">
+            <Plus size={20} className="text-gray-400 dark:text-gray-500 group-hover:text-[#f97316]" />
           </div>
-          <h3 className="text-xl font-bold text-gray-400 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">New Checkout</h3>
-          <p className="text-sm text-gray-400 dark:text-gray-500 text-center mt-2 max-w-[200px]">Launch a new product funnel in seconds.</p>
+          <span className="font-bold text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white">Create New Checkout</span>
         </div>
 
         {filteredCheckouts.map((page) => {
@@ -182,118 +183,63 @@ const ProductManager = () => {
           const gradientClass = getGradient(page.id);
 
           return (
-            <div key={page.id} className="group relative flex flex-col bg-white dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-3xl overflow-hidden hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-300 shadow-sm hover:shadow-xl dark:shadow-none dark:hover:shadow-black/50">
+            <div key={page.id} className="group relative bg-white dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-xl p-4 transition-all shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700 flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
               
-              {/* Banner Area */}
-              <div className={`h-48 relative overflow-hidden ${isPlaceholder ? gradientClass : 'bg-gray-100 dark:bg-gray-800'}`}>
-                
-                {/* Image / Pattern */}
-                {!isPlaceholder ? (
-                  <img 
-                    src={page.thumbnail} 
-                    alt={page.name} 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90 dark:opacity-80 group-hover:opacity-100" 
-                  />
-                ) : (
-                   /* Abstract Pattern Overlay */
-                   <div className="absolute inset-0 opacity-30 mix-blend-overlay" style={{
-                      backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.15) 1px, transparent 0)',
-                      backgroundSize: '24px 24px'
-                   }}></div>
-                )}
-
-                {/* Gradient Overlay for Text Readability */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
-
-                {/* Status Badge (Top Left) */}
-                <div className="absolute top-4 left-4 z-20">
-                  <div className="backdrop-blur-md bg-white/70 dark:bg-black/40 border border-black/5 dark:border-white/10 px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
-                    <div className={`w-1.5 h-1.5 rounded-full ${
-                      page.status === 'active' 
-                        ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]' 
-                        : 'bg-gray-400 dark:bg-gray-400'
-                    }`}></div>
-                    <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                        page.status === 'active' ? 'text-emerald-700 dark:text-emerald-100' : 'text-gray-600 dark:text-gray-300'
-                    }`}>
-                      {page.status}
-                    </span>
+              {/* Thumbnail & Identity */}
+              <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className={`w-16 h-16 rounded-lg shrink-0 relative overflow-hidden ${isPlaceholder ? gradientClass : 'bg-gray-100 dark:bg-gray-800'}`}>
+                      {!isPlaceholder && (
+                          <img 
+                              src={page.thumbnail} 
+                              alt={page.name} 
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                          />
+                      )}
+                      {page.logo && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px]">
+                              <img src={page.logo} alt="Logo" className="w-8 h-8 object-contain rounded drop-shadow-lg" />
+                          </div>
+                      )}
                   </div>
-                </div>
-
-                {/* Rename Menu Trigger (Top Right) */}
-                <div className="absolute top-4 right-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                        onClick={(e) => toggleMenu(e, page.id)}
-                        className="p-1.5 rounded-full bg-white/80 dark:bg-black/50 text-gray-900 dark:text-white hover:bg-white dark:hover:bg-black/80 transition-colors backdrop-blur-sm border border-black/5 dark:border-white/10 shadow-lg active:scale-95"
-                    >
-                        <MoreVertical size={16} />
-                    </button>
-                    
-                    {/* Floating Rename Menu */}
-                    {activeMenu === page.id && (
-                        <div 
-                        ref={menuRef}
-                        className="absolute top-8 right-0 w-32 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-200"
-                        onClick={(e) => e.stopPropagation()}
-                        >
-                        <button 
-                            onClick={(e) => openRenameModal(page, e)}
-                            className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-black dark:hover:text-white flex items-center gap-2 transition-colors active:scale-95"
-                        >
-                            <Edit2 size={12} /> Rename
-                        </button>
-                        </div>
-                    )}
-                </div>
-
-                {/* Centered Stylish Logo */}
-                {page.logo && (
-                   <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                      <div className="w-20 h-20 rounded-2xl bg-white dark:bg-[#111111] shadow-2xl border border-gray-100 dark:border-gray-800 p-2 flex items-center justify-center transform group-hover:scale-110 transition-transform duration-500">
-                         <img src={page.logo} alt="Logo" className="w-full h-full object-contain rounded-lg" />
+                  <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate group-hover:text-[#f97316] transition-colors cursor-pointer" onClick={() => navigate(`/checkouts/${page.id}`)}>
+                             {page.name}
+                          </h3>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${page.status === 'active' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 border-gray-200 dark:border-gray-700'}`}>
+                              {page.status}
+                          </span>
                       </div>
-                   </div>
-                )}
-                
+                      <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                          <span className="flex items-center gap-1"><Layout size={12}/> {page.products.length} Products</span>
+                          <button onClick={(e) => openRenameModal(page, e)} className="hover:text-gray-900 dark:hover:text-white flex items-center gap-1 transition-colors"><Edit2 size={10} /> Rename</button>
+                      </div>
+                  </div>
               </div>
 
-              {/* Content Body */}
-              <div className="p-6 flex-1 flex flex-col relative z-10 -mt-10">
-                
-                {/* Title & Product Count */}
-                <div className="mb-6 pt-2">
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1 truncate leading-tight group-hover:text-[#f97316] transition-colors drop-shadow-sm dark:drop-shadow-md text-center">
-                        {page.name}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium flex items-center justify-center gap-1.5">
-                       <Layout size={12} />
-                       {page.products.length} {page.products.length === 1 ? 'Product' : 'Products'} included
-                    </p>
-                </div>
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-px bg-gray-200 dark:bg-gray-800 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden mb-6 shadow-inner">
-                  <div className="bg-gray-50 dark:bg-[#161616] p-3 flex flex-col items-center justify-center hover:bg-white dark:hover:bg-[#1a1a1a] transition-colors">
-                    <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-bold mb-1">Revenue</div>
-                    <div className="font-bold text-gray-900 dark:text-white text-base">
-                       {settings.currency === 'USD' ? '$' : settings.currency === 'EUR' ? '€' : 'MAD '} 
-                       {page.totalRevenue.toLocaleString()}
-                    </div>
+              {/* Stats (Revenue & Conv) */}
+              <div className="flex items-center gap-8 md:px-8 md:border-l md:border-r border-gray-100 dark:border-gray-800">
+                  <div className="min-w-[80px]">
+                      <p className="text-[10px] uppercase text-gray-400 font-bold mb-0.5">Revenue</p>
+                      <p className="font-mono font-bold text-gray-900 dark:text-white text-sm">
+                          {settings.currency === 'USD' ? '$' : settings.currency === 'EUR' ? '€' : 'MAD '} 
+                          {page.totalRevenue.toLocaleString()}
+                      </p>
                   </div>
-                  <div className="bg-gray-50 dark:bg-[#161616] p-3 flex flex-col items-center justify-center hover:bg-white dark:hover:bg-[#1a1a1a] transition-colors">
-                    <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-bold mb-1">Conv. Rate</div>
-                    <div className="font-bold text-[#f97316] text-base flex items-center gap-1">
-                      {((page.conversions / (page.visits || 1)) * 100).toFixed(1)}%
-                    </div>
+                  <div className="min-w-[80px]">
+                      <p className="text-[10px] uppercase text-gray-400 font-bold mb-0.5">Conv. Rate</p>
+                      <p className="font-bold text-[#f97316] text-sm flex items-center gap-1">
+                          {((page.conversions / (page.visits || 1)) * 100).toFixed(1)}%
+                          <TrendingUp size={10} className="text-[#f97316]" />
+                      </p>
                   </div>
-                </div>
+              </div>
 
-                {/* Footer Actions */}
-                <div className="mt-auto flex items-center gap-2">
+              {/* Actions */}
+              <div className="flex items-center gap-2 self-start md:self-auto w-full md:w-auto mt-2 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-gray-100 dark:border-gray-800">
                   <button 
                     onClick={() => navigate(`/checkouts/${page.id}`)}
-                    className="flex-1 h-10 flex items-center justify-center gap-2 bg-gray-900 dark:bg-white hover:bg-black dark:hover:bg-gray-200 text-white dark:text-black rounded-lg text-sm font-bold transition-all shadow-md active:scale-95"
+                    className="flex-1 md:flex-none h-9 px-4 flex items-center justify-center gap-2 bg-gray-900 dark:bg-white hover:bg-black dark:hover:bg-gray-200 text-white dark:text-black rounded-lg text-sm font-bold transition-all shadow-md active:scale-95 whitespace-nowrap"
                   >
                     <Edit size={14} /> Edit
                   </button>
@@ -302,30 +248,29 @@ const ProductManager = () => {
                       <button 
                         onClick={(e) => handleCopyLink(e, page.id)}
                         title={copiedId === page.id ? "Copied!" : "Copy Link"}
-                        className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-all active:scale-95 shadow-sm"
+                        className="w-9 h-9 flex items-center justify-center bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-all active:scale-95 shadow-sm"
                       >
-                        {copiedId === page.id ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                        {copiedId === page.id ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
                       </button>
 
                       <button 
                         onClick={(e) => handlePreview(e, page.id)}
                         title="View Live Page"
-                        className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-all active:scale-95 shadow-sm"
+                        className="w-9 h-9 flex items-center justify-center bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-all active:scale-95 shadow-sm"
                       >
-                        <ExternalLink size={16} />
+                        <ExternalLink size={14} />
                       </button>
                       
                       <button 
                         onClick={(e) => handleDeleteClick(e, page.id)}
                         title="Delete Checkout"
-                        className="w-10 h-10 flex items-center justify-center bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 border border-gray-200 dark:border-gray-700 hover:border-red-200 dark:hover:border-red-900/30 rounded-lg text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-all active:scale-95 shadow-sm"
+                        className="w-9 h-9 flex items-center justify-center bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 border border-gray-200 dark:border-gray-700 hover:border-red-200 dark:hover:border-red-900/30 rounded-lg text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-all active:scale-95 shadow-sm"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                       </button>
                   </div>
-                </div>
-
               </div>
+
             </div>
           );
         })}

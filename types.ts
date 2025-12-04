@@ -49,6 +49,22 @@ export interface CheckoutComponent {
   content?: string;
 }
 
+export interface OrderBump {
+  id: string;
+  enabled: boolean;
+  title: string;
+  description: string;
+  image?: string;
+  
+  // Pricing Configuration
+  offerType: 'one_time' | 'multi_month'; // Standard or "2.99 x 12 months"
+  price: number; // The total price charged (e.g. 35.88)
+  
+  // Display details for multi-month
+  monthlyPrice?: number;
+  durationMonths?: number;
+}
+
 export interface CheckoutPage {
   id: string;
   name: string; // Internal name
@@ -70,6 +86,9 @@ export interface CheckoutPage {
   paymentMethods: PaymentMethod[];
   products: Product[];
   components: CheckoutComponent[];
+  
+  upsells: OrderBump[]; // New Array support
+  upsell?: OrderBump; // Deprecated single upsell
 }
 
 export interface StoreSettings {

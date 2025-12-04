@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Tag, Plus, Clock, Copy, Trash2, CheckCircle2 } from 'lucide-react';
 
@@ -12,7 +13,7 @@ const DiscountsPage = () => {
     <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Discounts</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Coupons</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Create coupons and promotional codes.</p>
         </div>
         <button className="px-4 py-2 bg-[#f97316] hover:bg-[#ea580c] text-white dark:text-black rounded-lg flex items-center gap-2 shadow-lg shadow-[#f97316]/20 font-bold">

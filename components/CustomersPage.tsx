@@ -1,12 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Mail, MapPin, UserPlus, MoreVertical, RefreshCw } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 
 const CustomersPage = () => {
-  const [search, setSearch] = useState('');
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get('q') || '');
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q !== null) {
+        setSearch(q);
+    }
+  }, [searchParams]);
 
   const generateMockCustomers = () => {
       return [

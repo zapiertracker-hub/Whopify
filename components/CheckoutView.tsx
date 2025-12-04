@@ -1,11 +1,12 @@
+
 import React, { useContext, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CheckoutPage, StoreSettings, PaymentMethod } from '../types';
+import { CheckoutPage, StoreSettings, PaymentMethod, OrderBump } from '../types';
 import { AppContext } from '../AppContext';
 import { 
   CreditCard, ChevronDown, ChevronUp, ShoppingCart, Loader2,
   AlertTriangle, Lock, AlertCircle, MessageCircle, ShoppingBag, Banknote,
-  Landmark, DollarSign, Upload, Wallet
+  Landmark, DollarSign, Upload, Wallet, ArrowRight, CheckCircle2
 } from 'lucide-react';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { 
@@ -16,13 +17,16 @@ import {
   trackAddPaymentInfo, trackPurchase, trackEvent 
 } from '../services/analytics';
 
-// --- Translation Dictionary ---
+const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+
+// ... (Translations Object - Keep as is) ...
 const translations = {
   en: {
     orderSummary: "Order summary",
     totalDue: "Total due today",
     fullName: "Full name",
     email: "Email address",
+    phoneNumber: "Phone number",
     country: "Country or region",
     cardNumber: "Card number",
     expiry: "Expiration date",
@@ -62,6 +66,7 @@ const translations = {
     totalDue: "Total à payer aujourd'hui",
     fullName: "Nom complet",
     email: "Adresse e-mail",
+    phoneNumber: "Numéro de téléphone",
     country: "Pays ou région",
     cardNumber: "Numéro de carte",
     expiry: "Date d'expiration",
@@ -100,7 +105,6 @@ const translations = {
 
 type LangCode = 'en' | 'fr';
 
-// --- Validation Utilities ---
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 const SecurityFooter = ({ t }: { t: any }) => (
@@ -120,14 +124,19 @@ const SecurityFooter = ({ t }: { t: any }) => (
 const CustomerFields = ({ values, onChange, errors, onBlur, t }: { values: any, onChange: (field: string, value: string) => void, errors: any, onBlur?: (field: string) => void, t: any }) => (
   <div className="space-y-4">
      <div>
-        <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.fullName}</label>
-        <input type="text" value={values.fullName} onChange={(e) => onChange('fullName', e.target.value)} onBlur={() => onBlur && onBlur('fullName')} className={`w-full bg-[var(--bg-input)] border rounded-lg px-3 py-3 text-[var(--text-primary)] text-base lg:text-sm outline-none transition-all placeholder-[var(--text-placeholder)] ${errors.fullName ? 'border-red-500/50 focus:border-red-500' : 'border-[var(--border-color)] focus:border-blue-600'}`} />
-        {errors.fullName && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={10} /> {errors.fullName}</p>}
-     </div>
-     <div>
         <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.email}</label>
         <input type="email" value={values.email} onChange={(e) => onChange('email', e.target.value)} onBlur={() => onBlur && onBlur('email')} className={`w-full bg-[var(--bg-input)] border rounded-lg px-3 py-3 text-[var(--text-primary)] text-base lg:text-sm outline-none transition-all placeholder-[var(--text-placeholder)] ${errors.email ? 'border-red-500/50 focus:border-red-500' : 'border-[var(--border-color)] focus:border-blue-600'}`} placeholder="you@example.com" />
         {errors.email && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={10} /> {errors.email}</p>}
+     </div>
+     <div>
+        <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.phoneNumber}</label>
+        <input type="tel" value={values.phoneNumber} onChange={(e) => onChange('phoneNumber', e.target.value)} onBlur={() => onBlur && onBlur('phoneNumber')} className={`w-full bg-[var(--bg-input)] border rounded-lg px-3 py-3 text-[var(--text-primary)] text-base lg:text-sm outline-none transition-all placeholder-[var(--text-placeholder)] ${errors.phoneNumber ? 'border-red-500/50 focus:border-red-500' : 'border-[var(--border-color)] focus:border-blue-600'}`} placeholder="+1 (555) 000-0000" />
+        {errors.phoneNumber && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={10} /> {errors.phoneNumber}</p>}
+     </div>
+     <div>
+        <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.fullName}</label>
+        <input type="text" value={values.fullName} onChange={(e) => onChange('fullName', e.target.value)} onBlur={() => onBlur && onBlur('fullName')} className={`w-full bg-[var(--bg-input)] border rounded-lg px-3 py-3 text-[var(--text-primary)] text-base lg:text-sm outline-none transition-all placeholder-[var(--text-placeholder)] ${errors.fullName ? 'border-red-500/50 focus:border-red-500' : 'border-[var(--border-color)] focus:border-blue-600'}`} />
+        {errors.fullName && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={10} /> {errors.fullName}</p>}
      </div>
      <div>
         <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.country}</label>
@@ -144,7 +153,7 @@ const CustomerFields = ({ values, onChange, errors, onBlur, t }: { values: any, 
   </div>
 );
 
-// Fallback / Preview Form
+// ... (Keep InteractiveCreditCardForm and LiveCreditCardForm as is) ...
 const InteractiveCreditCardForm = ({ cardState, setCardState, errors, setErrors, t }: any) => {
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.replace(/\D/g, '');
@@ -245,7 +254,7 @@ const LiveCreditCardForm = ({ appearance, errors, setErrors, t }: { appearance: 
   );
 };
 
-const InternalCheckoutForm = ({ totalDue, config, billingDetails, setBillingDetails, onValidationFailed, currency, appearance, errors, t }: any) => {
+const InternalCheckoutForm = ({ totalDue, config, billingDetails, setBillingDetails, onValidationFailed, currency, appearance, errors, t, selectedUpsellIds }: any) => {
   const stripe = useStripe();
   const elements = useElements();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -264,14 +273,14 @@ const InternalCheckoutForm = ({ totalDue, config, billingDetails, setBillingDeta
     trackAddPaymentInfo('stripe_elements', config.products, currency, totalDue);
 
     try {
-      // 1. Create Payment Intent on Server
-      const res = await fetch('http://localhost:3000/api/create-payment-intent', {
+      const res = await fetch(`${API_URL}/api/create-payment-intent`, {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({ 
              checkoutId: config.id,
              customerEmail: billingDetails.email,
-             customerName: billingDetails.fullName
+             customerName: billingDetails.fullName,
+             selectedUpsellIds: Array.from(selectedUpsellIds)
          })
       });
       const data = await res.json();
@@ -282,11 +291,15 @@ const InternalCheckoutForm = ({ totalDue, config, billingDetails, setBillingDeta
       const cardElement = elements.getElement(CardNumberElement);
       if (!cardElement) throw new Error("Card element not found");
 
-      // 2. Confirm Payment on Client
       const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card: cardElement,
-          billing_details: { name: billingDetails.fullName, email: billingDetails.email, address: { country: billingDetails.country === 'Morocco' ? 'MA' : 'US' } }
+          billing_details: { 
+             name: billingDetails.fullName, 
+             email: billingDetails.email, 
+             phone: billingDetails.phoneNumber,
+             address: { country: billingDetails.country === 'Morocco' ? 'MA' : 'US' } 
+          }
         }
       });
 
@@ -295,8 +308,7 @@ const InternalCheckoutForm = ({ totalDue, config, billingDetails, setBillingDeta
         setIsProcessing(false);
         trackEvent('payment_error', { error_type: error.type, error_message: error.message });
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-         // 3. Verify on backend (optional but recommended for robust logs)
-         await fetch('http://localhost:3000/api/verify-payment', {
+         await fetch(`${API_URL}/api/verify-payment`, {
              method: 'POST',
              headers: { 'Content-Type': 'application/json' },
              body: JSON.stringify({ paymentIntentId: paymentIntent.id })
@@ -323,7 +335,7 @@ const InternalCheckoutForm = ({ totalDue, config, billingDetails, setBillingDeta
   );
 };
 
-const ManualCheckoutForm = ({ config, settings, billingDetails, setBillingDetails, onValidationFailed, errors, t }: any) => {
+const ManualCheckoutForm = ({ config, settings, billingDetails, setBillingDetails, onValidationFailed, errors, t, selectedUpsellIds }: any) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -337,14 +349,16 @@ const ManualCheckoutForm = ({ config, settings, billingDetails, setBillingDetail
     setErrorMessage(null);
 
     try {
-        const res = await fetch('http://localhost:3000/api/create-manual-order', {
+        const res = await fetch(`${API_URL}/api/create-manual-order`, {
              method: 'POST',
              headers: { 'Content-Type': 'application/json' },
              body: JSON.stringify({ 
                  checkoutId: config.id,
                  customerEmail: billingDetails.email,
                  customerName: billingDetails.fullName,
-                 customerCountry: billingDetails.country
+                 customerPhone: billingDetails.phoneNumber,
+                 customerCountry: billingDetails.country,
+                 selectedUpsellIds: Array.from(selectedUpsellIds)
              })
         });
         
@@ -373,6 +387,8 @@ const ManualCheckoutForm = ({ config, settings, billingDetails, setBillingDetail
   );
 };
 
+// ... Bank and Crypto Forms Unchanged but omitting for brevity in this response ...
+// (Assume BankTransferForm and CryptoPaymentForm exist as before)
 const BankTransferForm = ({ settings, billingDetails, setBillingDetails, onValidationFailed, errors, t }: any) => {
   const [reference, setReference] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -495,13 +511,16 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [country, setCountry] = useState('Morocco');
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [cardState, setCardState] = useState({ cardNumber: '', expiry: '', cvc: '' });
   const [isProcessing, setIsProcessing] = useState(false);
   
+  // Upsell State (Multiple)
+  const [selectedUpsellIds, setSelectedUpsellIds] = useState<Set<string>>(new Set());
+
   // Enabled Payment Methods Logic
-  // Filter available methods based on what is in config AND enabled in global settings
   const enabledMethods = config.paymentMethods.filter((m: PaymentMethod) => {
       switch (m) {
           case 'stripe': return settings.stripeEnabled && (isDemo || settings.stripePublishableKey);
@@ -515,7 +534,6 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
 
   useEffect(() => {
-     // Set default payment method to the first available one
      if (enabledMethods.length > 0) {
          if (!paymentMethod || !enabledMethods.includes(paymentMethod)) {
              setPaymentMethod(enabledMethods[0]);
@@ -528,6 +546,7 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
   const updateBilling = (field: string, value: string) => {
       if (field === 'fullName') setFullName(value);
       if (field === 'email') setEmail(value);
+      if (field === 'phoneNumber') setPhoneNumber(value);
       if (field === 'country') setCountry(value);
       if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
   };
@@ -538,6 +557,10 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
           if (!email) newErrors.email = t.required;
           else if (!isValidEmail(email)) newErrors.email = t.invalid;
           else newErrors.email = '';
+      }
+      if (field === 'phoneNumber') {
+          if (!phoneNumber) newErrors.phoneNumber = t.required;
+          else newErrors.phoneNumber = '';
       }
       setErrors(newErrors);
   };
@@ -554,15 +577,8 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
     }
   }, [settings.stripeEnabled, settings.stripePublishableKey, isDemo]);
 
-  // Determine effective currency.
-  // 1. Check if the first product has a specific currency.
-  // 2. Check if the checkout page config has a specific currency.
-  // 3. Fallback to global store settings.
-  // We prioritize the product's currency as stored in the product object.
   const firstProduct = config.products && config.products.length > 0 ? config.products[0] : null;
   const currency = (firstProduct?.currency || config.currency || settings.currency || 'USD').toUpperCase();
-  
-  // Translation
   const lang: LangCode = (config.language as LangCode) || 'en';
   const t = translations[lang] || translations['en'];
 
@@ -579,9 +595,7 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
 
   const getProductPrice = (p: any) => {
       const currencyKey = currency.toLowerCase();
-      // Default price access
       let price = 0;
-      
       if (p.pricing?.oneTime?.enabled) {
           price = p.pricing.oneTime.prices[currencyKey] !== undefined ? p.pricing.oneTime.prices[currencyKey] : p.pricing.oneTime.prices.usd;
       } else if (p.pricing?.subscription?.enabled) {
@@ -589,18 +603,41 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
       } else if (p.pricing?.paymentPlan?.enabled) {
           price = p.pricing.paymentPlan.prices[currencyKey] !== undefined ? p.pricing.paymentPlan.prices[currencyKey] : p.pricing.paymentPlan.prices.usd;
       } else {
-          // Legacy or direct price field
            price = p.price || 0;
       }
       return price || 0;
   };
 
-  const totalDue = config.products.reduce((acc: any, p: any) => acc + getProductPrice(p), 0);
+  const productTotal = config.products.reduce((acc: any, p: any) => acc + getProductPrice(p), 0);
+  
+  // Calculate Upsell Total
+  // Legacy upsell support + new array support
+  const allUpsells = [...(config.upsells || []), ...(config.upsell?.enabled ? [config.upsell] : [])].filter(u => u && u.enabled);
+  
+  const upsellTotal = allUpsells.reduce((acc, u) => {
+      if (selectedUpsellIds.has(u.id)) {
+          return acc + (u.price || 0);
+      }
+      return acc;
+  }, 0);
+
+  const totalDue = productTotal + upsellTotal;
+
+  const toggleUpsell = (id: string) => {
+      const newSet = new Set(selectedUpsellIds);
+      if (newSet.has(id)) {
+          newSet.delete(id);
+      } else {
+          newSet.add(id);
+      }
+      setSelectedUpsellIds(newSet);
+  };
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
     if (!fullName || fullName.length < 2) newErrors.fullName = t.required;
     if (!email || !isValidEmail(email)) newErrors.email = t.invalid;
+    if (!phoneNumber || phoneNumber.length < 6) newErrors.phoneNumber = t.invalid;
     if (isDemo && paymentMethod === 'stripe') {
         if (cardState.cardNumber.length < 16) newErrors.cardNumber = t.invalid;
     }
@@ -651,6 +688,35 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
                        </div>
                   </div>
               );
+          })}
+          
+          {/* Render Selected Upsells in Summary */}
+          {allUpsells.map(upsell => {
+              if (selectedUpsellIds.has(upsell.id)) {
+                  return (
+                      <div key={upsell.id} className="flex gap-4 items-start animate-in fade-in slide-in-from-top-2">
+                           <div className="relative w-16 h-16 bg-[var(--bg-input)] rounded-lg border border-dashed border-[#f97316]/50 overflow-hidden shrink-0 flex items-center justify-center">
+                               {upsell.image ? (
+                                  <img src={upsell.image} alt="Upsell" className="w-full h-full object-cover" />
+                               ) : (
+                                  <div className="text-[#f97316]"><ArrowRight size={20} /></div>
+                               )}
+                           </div>
+                           <div className="flex-1">
+                               <h3 className="font-bold text-[var(--text-primary)] text-sm">{upsell.title}</h3>
+                               {upsell.offerType === 'multi_month' && (
+                                   <p className="text-[10px] text-[#f97316] font-bold mt-0.5">
+                                       {upsell.durationMonths} Months Bundle
+                                   </p>
+                               )}
+                           </div>
+                           <div className="font-bold text-[var(--text-primary)] text-sm">
+                               {currencySymbol}{upsell.price.toFixed(2)}
+                           </div>
+                      </div>
+                  );
+              }
+              return null;
           })}
       </div>
   );
@@ -715,7 +781,42 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                   
                   {/* Global Customer Fields */}
-                  <CustomerFields values={{ fullName, email, country }} onChange={updateBilling} errors={errors} onBlur={handleBillingBlur} t={t} />
+                  <CustomerFields values={{ fullName, email, phoneNumber, country }} onChange={updateBilling} errors={errors} onBlur={handleBillingBlur} t={t} />
+                  
+                  {/* Multiple Order Bumps */}
+                  {allUpsells.length > 0 && (
+                      <div className="mt-6 space-y-4">
+                          {allUpsells.map(upsell => {
+                              const isSelected = selectedUpsellIds.has(upsell.id);
+                              return (
+                                  <div 
+                                     key={upsell.id}
+                                     onClick={() => toggleUpsell(upsell.id)}
+                                     className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex gap-4 items-start ${isSelected ? 'border-[#f97316] bg-[#f97316]/5' : 'border-dashed border-[var(--border-color)] bg-[var(--bg-card)] hover:border-gray-400'}`}
+                                  >
+                                     <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-[#f97316] border-[#f97316] text-white' : 'border-[var(--text-secondary)]'}`}>
+                                         {isSelected && <ArrowRight size={14} className="rotate-45" strokeWidth={3} />}
+                                     </div>
+                                     <div className="flex-1">
+                                         <div className="flex justify-between items-start">
+                                             <h4 className="font-bold text-[var(--text-primary)] text-sm">{upsell.title}</h4>
+                                             <span className="font-bold text-[#f97316] text-sm">{currencySymbol}{upsell.price.toFixed(2)}</span>
+                                         </div>
+                                         <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">{upsell.description}</p>
+                                         
+                                         {/* Show calculation breakdown if applicable */}
+                                         {upsell.offerType === 'multi_month' && upsell.monthlyPrice && (
+                                             <div className="mt-2 inline-block px-2 py-1 bg-[#f97316]/10 rounded text-[10px] font-bold text-[#f97316]">
+                                                 {currencySymbol}{upsell.monthlyPrice} / month × {upsell.durationMonths} months
+                                             </div>
+                                         )}
+                                     </div>
+                                     {upsell.image && <div className="w-12 h-12 rounded bg-gray-100 overflow-hidden shrink-0"><img src={upsell.image} className="w-full h-full object-cover" /></div>}
+                                  </div>
+                              );
+                          })}
+                      </div>
+                  )}
 
                   {/* Payment Methods */}
                   <div className="space-y-4 mt-6">
@@ -732,7 +833,6 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
                                   key={method} 
                                   className={`border rounded-xl overflow-hidden transition-all duration-200 ${isSelected ? 'border-blue-600 ring-1 ring-blue-600 bg-[var(--bg-card)] shadow-md' : 'border-[var(--border-color)] bg-[var(--bg-card)] hover:border-blue-300'}`}
                               >
-                                  {/* Header */}
                                   <div 
                                       onClick={() => setPaymentMethod(method)}
                                       className="flex items-center gap-3 p-4 cursor-pointer select-none"
@@ -746,7 +846,6 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
                                       </div>
                                   </div>
 
-                                  {/* Body */}
                                   {isSelected && (
                                       <div className="p-4 pt-0 border-t border-[var(--border-color)] mt-2">
                                           {method === 'stripe' && (
@@ -761,21 +860,19 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
                                               ) : (
                                                   stripePromise && (
                                                       <Elements stripe={stripePromise}>
-                                                          <InternalCheckoutForm totalDue={totalDue} config={config} billingDetails={{ fullName, email, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} currency={currency} appearance={appearance} errors={errors} t={t} />
+                                                          <InternalCheckoutForm totalDue={totalDue} config={config} billingDetails={{ fullName, email, phoneNumber, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} currency={currency} appearance={appearance} errors={errors} t={t} selectedUpsellIds={selectedUpsellIds} />
                                                       </Elements>
                                                   )
                                               )
                                           )}
                                           {method === 'manual' && (
-                                              <ManualCheckoutForm config={config} settings={settings} billingDetails={{ fullName, email, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} />
+                                              <ManualCheckoutForm config={config} settings={settings} billingDetails={{ fullName, email, phoneNumber, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} selectedUpsellIds={selectedUpsellIds} />
                                           )}
-
                                           {method === 'bank_transfer' && (
-                                              <BankTransferForm settings={settings} billingDetails={{ fullName, email, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} />
+                                              <BankTransferForm settings={settings} billingDetails={{ fullName, email, phoneNumber, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} />
                                           )}
-
                                           {method === 'crypto' && (
-                                              <CryptoPaymentForm settings={settings} billingDetails={{ fullName, email, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} />
+                                              <CryptoPaymentForm settings={settings} billingDetails={{ fullName, email, phoneNumber, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} />
                                           )}
                                       </div>
                                   )}
@@ -790,7 +887,6 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
         </div>
       </div>
       
-      {/* Floating WhatsApp Button */}
       {settings.whatsappEnabled && settings.whatsappNumber && (
          <a 
            href={`https://wa.me/${settings.whatsappNumber}`} 
@@ -815,8 +911,7 @@ const CheckoutView = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-     // Try Fetch Public Config (Real Backend)
-     fetch(`http://localhost:3000/api/public-config/${checkoutId}`)
+     fetch(`${API_URL}/api/public-config/${checkoutId}`)
        .then(res => {
            if (!res.ok) throw new Error("Not Found");
            return res.json();
@@ -841,12 +936,11 @@ const CheckoutView = () => {
            });
        })
        .catch(err => {
-           // Fallback to Context (Offline/Demo)
            const found = checkouts.find(c => c.id === checkoutId);
            if (found) {
                setConfig(found);
                setPublicSettings({
-                   stripeEnabled: false, // Force demo mode
+                   stripeEnabled: false,
                    stripePublishableKey: '',
                    currency: settings.currency || 'USD',
                    whatsappEnabled: settings.whatsappEnabled,

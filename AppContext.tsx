@@ -1,5 +1,12 @@
+
 import React from 'react';
 import { Language, CheckoutPage, StoreSettings, Theme } from './types';
+
+export interface UserProfile {
+  name: string;
+  email: string;
+  avatar: string;
+}
 
 export interface AppContextType {
   language: Language;
@@ -21,6 +28,10 @@ export interface AppContextType {
   // Settings Data
   settings: StoreSettings;
   saveSettings: (settings: StoreSettings) => void;
+
+  // User Data
+  user: UserProfile;
+  updateUser: (updates: Partial<UserProfile>) => void;
 }
 
 export const AppContext = React.createContext<AppContextType>({
@@ -55,4 +66,6 @@ export const AppContext = React.createContext<AppContextType>({
     taxName: 'Tax'
   },
   saveSettings: () => {},
+  user: { name: 'Youssef B.', email: 'admin@whopify.io', avatar: '' },
+  updateUser: () => {}
 });
