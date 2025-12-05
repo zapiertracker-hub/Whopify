@@ -1,5 +1,3 @@
-
-
 import React, { useState, useContext, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppContext } from '../AppContext';
@@ -11,7 +9,8 @@ import {
   X, Upload, AlertCircle, CheckCircle2, Tablet, Monitor, Smartphone, Palette,
   Sun, Moon, Link as LinkIcon, Check, DollarSign, ExternalLink, Copy, Sparkles,
   Loader2, Trash2, Package, RefreshCw, CreditCard, Calendar, PieChart, Eye,
-  Wallet, Landmark, Banknote, ArrowUp, ArrowDown, ChevronDown, Globe, Zap, Edit2, User
+  Wallet, Landmark, Banknote, ArrowUp, ArrowDown, ChevronDown, Globe, Zap, Edit2, User,
+  ArrowRight
 } from 'lucide-react';
 
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
@@ -294,14 +293,53 @@ const StoreBuilder = () => {
      window.open(url, '_blank');
   };
 
+  const validatePublish = () => {
+      if (config.products.length === 0) return { valid: false, msg: "Please add at least one product.", tab: 'products' };
+      // Simplified price check based on legacy field or pricing structure
+      if (config.products.some(p => p.price <= 0)) return { valid: false, msg: "All products must have a price greater than 0.", tab: 'products' };
+      if (config.paymentMethods.length === 0) return { valid: false, msg: "Enable at least one payment method in Settings.", tab: 'settings' };
+      return { valid: true };
+  };
+
+  const handleNextStep = () => {
+      if (!config) return;
+      setValidationError(null);
+
+      // IMPORTANT: Save progress to context/local storage on every step
+      // This ensures the "Next" button behaves like "Save & Next"
+      if (checkoutId) updateCheckout(checkoutId, config); 
+
+      if (activeTab === 'settings') {
+          if (!config.name.trim()) {
+              setValidationError("Internal name is required.");
+              return;
+          }
+          if (config.paymentMethods.length === 0) {
+               setValidationError("Please enable at least one payment method.");
+               return;
+          }
+          setActiveTab('products');
+      } else if (activeTab === 'products') {
+          if (config.products.length === 0) {
+              setValidationError("Please add at least one product before proceeding.");
+              return;
+          }
+          setActiveTab('upsells');
+      } else if (activeTab === 'upsells') {
+          setActiveTab('thankyou');
+      } else if (activeTab === 'thankyou') {
+          const check = validatePublish();
+          if (!check.valid) {
+              setValidationError(check.msg || "Validation failed");
+              if (check.tab) setActiveTab(check.tab as any);
+              return;
+          }
+          handleSaveChanges();
+      }
+  };
+
   const handleSaveChanges = async () => {
      if (config && checkoutId) {
-        if (config.products.length === 0) {
-            setValidationError("Please add at least one product before publishing.");
-            setActiveTab('products');
-            setTimeout(() => setValidationError(null), 5000);
-            return;
-        }
         updateCheckout(checkoutId, config);
         try {
             await fetch(`${API_URL}/api/checkouts`, {
@@ -501,6 +539,27 @@ const StoreBuilder = () => {
                             </div>
                         </div>
                         <div>
+                            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Checkout Theme</label>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button 
+                                    onClick={() => setConfig({...config, appearance: 'light'})}
+                                    className={`relative p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${config.appearance === 'light' ? 'bg-white border-[#f97316] text-black ring-1 ring-[#f97316] shadow-sm' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'}`}
+                                >
+                                    <Sun size={20} className={config.appearance === 'light' ? 'text-[#f97316]' : ''} />
+                                    <span className="text-xs font-bold">Light Mode</span>
+                                    {config.appearance === 'light' && <div className="absolute top-2 right-2 w-2 h-2 bg-[#f97316] rounded-full"></div>}
+                                </button>
+                                <button 
+                                    onClick={() => setConfig({...config, appearance: 'dark'})}
+                                    className={`relative p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${config.appearance === 'dark' || !config.appearance ? 'bg-[#111111] border-[#f97316] text-white ring-1 ring-[#f97316] shadow-sm' : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'}`}
+                                >
+                                    <Moon size={20} className={config.appearance === 'dark' || !config.appearance ? 'text-[#f97316]' : ''} />
+                                    <span className="text-xs font-bold">Dark Mode</span>
+                                    {(config.appearance === 'dark' || !config.appearance) && <div className="absolute top-2 right-2 w-2 h-2 bg-[#f97316] rounded-full"></div>}
+                                </button>
+                            </div>
+                        </div>
+                        <div>
                             <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Logo Size ({config.logoScale || 100}%)</label>
                             <input type="range" min="50" max="200" value={config.logoScale || 100} onChange={(e) => setConfig({...config, logoScale: parseInt(e.target.value)})} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-black dark:accent-white" />
                         </div>
@@ -586,7 +645,7 @@ const StoreBuilder = () => {
                   <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
                       <div>
                           <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                              <Zap size={16} className="text-[#f97316]" /> Order Bumps
+                              <Zap size={16} className="text-[#f97316]" /> Order Bumps <span className="text-gray-500 font-normal text-xs">(Optional)</span>
                           </h2>
                           <p className="text-xs text-gray-500 mt-1">Offer additional products at checkout.</p>
                       </div>
@@ -697,8 +756,12 @@ const StoreBuilder = () => {
                     <AlertCircle size={14} className="shrink-0" /> {validationError}
                 </div>
              )}
-             <button onClick={handleSaveChanges} className="w-full bg-gray-900 dark:bg-white hover:bg-black dark:hover:bg-gray-200 text-white dark:text-black py-3 rounded-xl font-bold transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2">
-                 <Save size={18} /> Save Changes
+             <button onClick={handleNextStep} className="w-full bg-gray-900 dark:bg-white hover:bg-black dark:hover:bg-gray-200 text-white dark:text-black py-3 rounded-xl font-bold transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2">
+                 {activeTab === 'thankyou' ? (
+                     <><CheckCircle2 size={18} /> Publish & Get Link</>
+                 ) : (
+                     <><ArrowRight size={18} /> Next Step</>
+                 )}
              </button>
           </div>
 

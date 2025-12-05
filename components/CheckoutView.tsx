@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import React, { useContext, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CheckoutPage, StoreSettings, PaymentMethod, OrderBump } from '../types';
@@ -16,7 +10,8 @@ import {
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { 
   Elements, useStripe, useElements,
-  CardNumberElement, CardExpiryElement, CardCvcElement
+  CardNumberElement, CardExpiryElement, CardCvcElement,
+  PaymentRequestButtonElement
 } from '@stripe/react-stripe-js';
 import { 
   trackAddPaymentInfo, trackPurchase, trackEvent 
@@ -24,11 +19,16 @@ import {
 
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 
-// ... (Translations Object - Keep as is) ...
+const COUNTRIES_LIST = [
+  "France", "United States", "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "East Timor", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Finland", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Korea, North", "Korea, South", "Kosovo", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"
+];
+
 const translations = {
   en: {
     orderSummary: "Order summary",
     totalDue: "Total due today",
+    customerInfo: "Customer Info",
+    payment: "Payment",
     fullName: "Full name",
     email: "Email address",
     phoneNumber: "Phone number",
@@ -67,39 +67,41 @@ const translations = {
     invalid: "Invalid"
   },
   fr: {
-    orderSummary: "Récapitulatif de la commande",
-    totalDue: "Total à payer aujourd'hui",
+    orderSummary: "Résumé de la commande",
+    totalDue: "Total à payer",
+    customerInfo: "Coordonnées",
+    payment: "Paiement",
     fullName: "Nom complet",
     email: "Adresse e-mail",
-    phoneNumber: "Numéro de téléphone",
+    phoneNumber: "Téléphone",
     country: "Pays ou région",
     cardNumber: "Numéro de carte",
-    expiry: "Date d'expiration",
-    cvc: "Code de sécurité",
+    expiry: "Expiration",
+    cvc: "CVC",
     promoCode: "Code promo",
-    enterPromo: "Saisir votre code promo",
+    enterPromo: "Ajouter un code promo",
     apply: "Appliquer",
     payWithCard: "Carte bancaire",
     payWithBank: "Virement bancaire",
-    payWithCrypto: "Crypto",
-    payWithManual: "Manuel",
-    orderNow: "Payer maintenant",
+    payWithCrypto: "Cryptomonnaie",
+    payWithManual: "Paiement manuel",
+    orderNow: "Payer",
     placeOrder: "Commander",
-    completeOrder: "Finaliser la commande",
-    sentPayment: "J'ai envoyé le paiement",
+    completeOrder: "Confirmer la commande",
+    sentPayment: "Paiement envoyé",
     processing: "Traitement...",
     securedBy: "Sécurisé par",
     terms: "Conditions",
     privacy: "Confidentialité",
-    disclaimer: "En confirmant, vous acceptez les Conditions Générales et autorisez Whopify à débiter votre carte pour ce paiement.",
-    noMethods: "Aucun moyen de paiement n'est disponible pour le moment.",
+    disclaimer: "En validant, vous acceptez les Conditions Générales et autorisez le débit de votre carte.",
+    noMethods: "Aucune méthode de paiement disponible.",
     accountDetails: "Coordonnées bancaires",
     instructions: "Instructions",
     paymentRef: "Référence de paiement",
-    proof: "Preuve de paiement (Optionnel)",
-    selectCurrency: "Sélectionner la devise",
+    proof: "Preuve de paiement (Facultatif)",
+    selectCurrency: "Choisir la devise",
     sendTo: "Envoyer {coin} à cette adresse",
-    cryptoWarning: "Envoyez uniquement du {coin} à cette adresse. L'envoi de toute autre devise peut entraîner une perte définitive.",
+    cryptoWarning: "Envoyez uniquement du {coin} à cette adresse. Tout autre envoi sera perdu.",
     orderFailed: "Échec de la commande",
     paymentFailed: "Échec du paiement",
     demoMode: "Mode Démo : Paiements simulés.",
@@ -149,10 +151,9 @@ const CustomerFields = ({ values, onChange, errors, onBlur, t, collectPhone = tr
         <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.country}</label>
         <div className="relative">
             <select value={values.country} onChange={(e) => onChange('country', e.target.value)} className="w-full bg-[var(--bg-input)] border border-[var(--border-color)] rounded-lg px-3 py-3 text-[var(--text-primary)] text-base lg:text-sm outline-none focus:border-blue-600 appearance-none transition-all cursor-pointer">
-                <option value="Morocco">Morocco</option>
-                <option value="United States">United States</option>
-                <option value="United Kingdom">United Kingdom</option>
-                <option value="France">France</option>
+                {COUNTRIES_LIST.map(country => (
+                    <option key={country} value={country}>{country}</option>
+                ))}
             </select>
             <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none" />
         </div>
@@ -160,7 +161,6 @@ const CustomerFields = ({ values, onChange, errors, onBlur, t, collectPhone = tr
   </div>
 );
 
-// ... (Keep InteractiveCreditCardForm and LiveCreditCardForm as is) ...
 const InteractiveCreditCardForm = ({ cardState, setCardState, errors, setErrors, t }: any) => {
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.replace(/\D/g, '');
@@ -221,7 +221,7 @@ const InteractiveCreditCardForm = ({ cardState, setCardState, errors, setErrors,
 const LiveCreditCardForm = ({ appearance, errors, setErrors, t }: { appearance: 'light' | 'dark', errors: any, setErrors: any, t: any }) => {
   const elementOptions = {
     style: {
-      base: { fontSize: '16px', color: appearance === 'light' ? '#111827' : '#ffffff', '::placeholder': { color: appearance === 'light' ? '#9ca3af' : '#525252' }, fontFamily: 'Inter, sans-serif', iconColor: appearance === 'light' ? '#6b7280' : '#9ca3af' },
+      base: { fontSize: '16px', color: appearance === 'light' ? '#111827' : '#ffffff', '::placeholder': { color: appearance === 'light' ? '#9ca3af' : '#71717a' }, fontFamily: 'Inter, sans-serif', iconColor: appearance === 'light' ? '#6b7280' : '#a1a1aa' },
       invalid: { color: '#ef4444' },
     },
   };
@@ -267,7 +267,75 @@ const InternalCheckoutForm = ({ totalDue, config, billingDetails, setBillingDeta
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [cardErrors, setCardErrors] = useState({ cardNumber: '', expiry: '', cvc: '' });
+  const [paymentRequest, setPaymentRequest] = useState<any>(null);
   const navigate = useNavigate();
+
+  // Payment Request (Express Checkout) Logic
+  useEffect(() => {
+    if (!stripe) return;
+
+    const pr = stripe.paymentRequest({
+      country: billingDetails.country === 'Morocco' ? 'MA' : (billingDetails.country === 'United Kingdom' ? 'GB' : (billingDetails.country === 'France' ? 'FR' : 'US')),
+      currency: currency.toLowerCase(),
+      total: {
+        label: config.name,
+        amount: Math.round(totalDue * 100),
+      },
+      requestPayerName: true,
+      requestPayerEmail: true,
+    });
+
+    pr.canMakePayment().then((result) => {
+      if (result) {
+        setPaymentRequest(pr);
+      }
+    });
+
+    pr.on('paymentmethod', async (ev) => {
+        try {
+             const res = await fetch(`${API_URL}/api/create-payment-intent`, {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ 
+                     checkoutId: config.id,
+                     customerEmail: ev.payerEmail || billingDetails.email,
+                     customerName: ev.payerName || billingDetails.fullName,
+                     selectedUpsellIds: Array.from(selectedUpsellIds)
+                 })
+              });
+              
+              if (!res.ok) {
+                  ev.complete('fail');
+                  setErrorMessage("Payment initialization failed");
+                  return;
+              }
+
+              const { clientSecret } = await res.json();
+
+              const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+                  payment_method: ev.paymentMethod.id,
+              }, { handleActions: false });
+
+              if (confirmError) {
+                  ev.complete('fail');
+                  setErrorMessage(confirmError.message || "Payment failed");
+              } else {
+                  ev.complete('success');
+                   await fetch(`${API_URL}/api/verify-payment`, {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({ paymentIntentId: paymentIntent.id })
+                   });
+                   trackPurchase(paymentIntent.id, totalDue, currency, config.products);
+                   navigate('/order-confirmation', { state: { customLink: config.customThankYouLink } });
+              }
+        } catch (e) {
+            ev.complete('fail');
+            setErrorMessage("Network error occurred");
+        }
+    });
+
+  }, [stripe, totalDue, currency]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -333,6 +401,15 @@ const InternalCheckoutForm = ({ totalDue, config, billingDetails, setBillingDeta
     <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in pt-2">
       <LiveCreditCardForm appearance={appearance} errors={cardErrors} setErrors={setCardErrors} t={t} />
       {errorMessage && <div className="flex items-start gap-3 text-red-400 text-sm bg-red-900/10 p-4 rounded-xl border border-red-900/30"><AlertTriangle size={20} className="shrink-0 mt-0.5 text-red-500" /><div className="flex-1"><span className="font-semibold block mb-1 text-red-300">{t.paymentFailed}</span><span>{errorMessage}</span></div></div>}
+      {paymentRequest && (
+          <div className="mb-6">
+              <PaymentRequestButtonElement options={{paymentRequest, style: { paymentRequestButton: { theme: appearance === 'dark' ? 'dark' : 'light', height: '48px' }}}} />
+              <div className="relative mt-6 mb-6">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[var(--border-color)]"></div></div>
+                  <div className="relative flex justify-center text-xs uppercase"><span className="bg-[var(--bg-card)] px-2 text-[var(--text-secondary)] font-medium">Or pay with</span></div>
+              </div>
+          </div>
+      )}
       <div>
         <button type="submit" disabled={!stripe || isProcessing} className="w-full bg-[#1754d8] hover:bg-[#154dc0] text-white font-bold py-3.5 rounded-lg transition-all active:scale-95 shadow-lg text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
             {isProcessing ? (<><Loader2 size={16} className="animate-spin" /> {t.processing}</>) : (t.orderNow)}
@@ -394,8 +471,6 @@ const ManualCheckoutForm = ({ config, settings, billingDetails, setBillingDetail
   );
 };
 
-// ... Bank and Crypto Forms Unchanged but omitting for brevity in this response ...
-// (Assume BankTransferForm and CryptoPaymentForm exist as before)
 const BankTransferForm = ({ settings, config, billingDetails, setBillingDetails, onValidationFailed, errors, t }: any) => {
   const [reference, setReference] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -519,7 +594,7 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [country, setCountry] = useState('Morocco');
+  const [country, setCountry] = useState('France'); // Default to France as requested
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [cardState, setCardState] = useState({ cardNumber: '', expiry: '', cvc: '' });
   const [isProcessing, setIsProcessing] = useState(false);
@@ -550,6 +625,25 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
          setPaymentMethod(null);
      }
   }, [enabledMethods, paymentMethod]); 
+
+  // Auto-pick region based on IP
+  useEffect(() => {
+    const detectCountry = async () => {
+        try {
+            const response = await fetch('https://ipapi.co/json/');
+            const data = await response.json();
+            if (data && data.country_name) {
+                // Verify if the detected country is in our list
+                // If the name from API slightly differs, this might not match perfectly, 
+                // but ipapi.co names are usually standard.
+                setCountry(data.country_name);
+            }
+        } catch (e) {
+            console.debug('Country auto-detection failed, using default.');
+        }
+    };
+    detectCountry();
+  }, []);
 
   const updateBilling = (field: string, value: string) => {
       if (field === 'fullName') setFullName(value);
@@ -663,14 +757,14 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
 
   const appearance = config.appearance || 'dark';
   const themeStyles = {
-    '--bg-page': appearance === 'light' ? '#f1f1f1' : '#020202',
+    '--bg-page': appearance === 'light' ? '#f3f4f6' : '#020202',
     '--bg-panel': appearance === 'light' ? '#ffffff' : '#0a0a0a',
     '--bg-card': appearance === 'light' ? '#ffffff' : '#111111',
     '--bg-input': appearance === 'light' ? '#ffffff' : '#161616',
     '--text-primary': appearance === 'light' ? '#111827' : '#ffffff',
-    '--text-secondary': appearance === 'light' ? '#6b7280' : '#9ca3af',
+    '--text-secondary': appearance === 'light' ? '#6b7280' : '#a1a1aa',
     '--border-color': appearance === 'light' ? '#e5e7eb' : '#27272a',
-    '--text-placeholder': appearance === 'light' ? '#9ca3af' : '#525252',
+    '--text-placeholder': appearance === 'light' ? '#9ca3af' : '#71717a',
   } as React.CSSProperties;
 
   const ProductList = () => (
@@ -794,6 +888,9 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
               </div>
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                   
+                  {/* Customer Info Title */}
+                  <h3 className="text-lg font-bold text-[var(--text-primary)] mb-4">{t.customerInfo}</h3>
+
                   {/* Global Customer Fields */}
                   <CustomerFields values={{ fullName, email, phoneNumber, country }} onChange={updateBilling} errors={errors} onBlur={handleBillingBlur} t={t} collectPhone={collectPhone} />
                   
@@ -838,8 +935,11 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
                       </div>
                   )}
 
+                  {/* Payment Title */}
+                  <h3 className="text-lg font-bold text-[var(--text-primary)] mt-8 mb-4">{t.payment}</h3>
+
                   {/* Payment Methods */}
-                  <div className="space-y-4 mt-6">
+                  <div className="space-y-4">
                       {enabledMethods.length === 0 && (
                           <div className="p-4 border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-lg text-sm text-center font-medium flex items-center justify-center gap-2">
                               <AlertCircle size={16} /> {t.noMethods}
@@ -875,6 +975,16 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
                                                       <InteractiveCreditCardForm cardState={cardState} setCardState={setCardState} errors={errors} setErrors={setErrors} t={t} />
                                                       <button disabled={isProcessing} onClick={handleManualOrderPreview} className="w-full bg-[#1754d8] hover:bg-[#154dc0] text-white font-bold py-3.5 rounded-lg transition-all active:scale-95 shadow-lg text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                                                           {isProcessing ? (<><Loader2 size={16} className="animate-spin" /> {t.processing}</>) : (t.orderNow)}
+                                                      </button>
+                                                      <div className="relative mt-6 mb-6">
+                                                          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[var(--border-color)]"></div></div>
+                                                          <div className="relative flex justify-center text-xs uppercase"><span className="bg-[var(--bg-card)] px-2 text-[var(--text-secondary)] font-medium">Or pay with</span></div>
+                                                      </div>
+                                                      <button disabled className="w-full bg-black text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 opacity-80 cursor-not-allowed text-sm">
+                                                          <span className="font-bold">Pay</span> <span className="font-light">with</span> Apple Pay
+                                                      </button>
+                                                      <button disabled className="w-full bg-white text-black border border-[var(--border-color)] font-bold py-3 rounded-lg flex items-center justify-center gap-2 mt-2 opacity-80 cursor-not-allowed text-sm">
+                                                          <span className="font-bold text-blue-500">G</span> <span className="font-bold text-red-500">P</span> <span className="font-bold text-yellow-500">a</span> <span className="font-bold text-green-500">y</span>
                                                       </button>
                                                   </div>
                                               ) : (
