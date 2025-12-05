@@ -89,6 +89,14 @@ export interface CheckoutPage {
   
   upsells: OrderBump[]; // New Array support
   upsell?: OrderBump; // Deprecated single upsell
+
+  collectPhoneNumber?: boolean; // Toggle for phone number field
+
+  customThankYouLink?: {
+    enabled: boolean;
+    text: string;
+    url: string;
+  };
 }
 
 export interface StoreSettings {

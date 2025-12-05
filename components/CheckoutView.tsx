@@ -1,4 +1,9 @@
 
+
+
+
+
+
 import React, { useContext, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CheckoutPage, StoreSettings, PaymentMethod, OrderBump } from '../types';
@@ -121,18 +126,20 @@ const SecurityFooter = ({ t }: { t: any }) => (
   </div>
 );
 
-const CustomerFields = ({ values, onChange, errors, onBlur, t }: { values: any, onChange: (field: string, value: string) => void, errors: any, onBlur?: (field: string) => void, t: any }) => (
+const CustomerFields = ({ values, onChange, errors, onBlur, t, collectPhone = true }: { values: any, onChange: (field: string, value: string) => void, errors: any, onBlur?: (field: string) => void, t: any, collectPhone?: boolean }) => (
   <div className="space-y-4">
      <div>
         <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.email}</label>
         <input type="email" value={values.email} onChange={(e) => onChange('email', e.target.value)} onBlur={() => onBlur && onBlur('email')} className={`w-full bg-[var(--bg-input)] border rounded-lg px-3 py-3 text-[var(--text-primary)] text-base lg:text-sm outline-none transition-all placeholder-[var(--text-placeholder)] ${errors.email ? 'border-red-500/50 focus:border-red-500' : 'border-[var(--border-color)] focus:border-blue-600'}`} placeholder="you@example.com" />
         {errors.email && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={10} /> {errors.email}</p>}
      </div>
-     <div>
-        <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.phoneNumber}</label>
-        <input type="tel" value={values.phoneNumber} onChange={(e) => onChange('phoneNumber', e.target.value)} onBlur={() => onBlur && onBlur('phoneNumber')} className={`w-full bg-[var(--bg-input)] border rounded-lg px-3 py-3 text-[var(--text-primary)] text-base lg:text-sm outline-none transition-all placeholder-[var(--text-placeholder)] ${errors.phoneNumber ? 'border-red-500/50 focus:border-red-500' : 'border-[var(--border-color)] focus:border-blue-600'}`} placeholder="+1 (555) 000-0000" />
-        {errors.phoneNumber && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={10} /> {errors.phoneNumber}</p>}
-     </div>
+     {collectPhone && (
+         <div>
+            <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.phoneNumber}</label>
+            <input type="tel" value={values.phoneNumber} onChange={(e) => onChange('phoneNumber', e.target.value)} onBlur={() => onBlur && onBlur('phoneNumber')} className={`w-full bg-[var(--bg-input)] border rounded-lg px-3 py-3 text-[var(--text-primary)] text-base lg:text-sm outline-none transition-all placeholder-[var(--text-placeholder)] ${errors.phoneNumber ? 'border-red-500/50 focus:border-red-500' : 'border-[var(--border-color)] focus:border-blue-600'}`} placeholder="+1 (555) 000-0000" />
+            {errors.phoneNumber && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={10} /> {errors.phoneNumber}</p>}
+         </div>
+     )}
      <div>
         <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.fullName}</label>
         <input type="text" value={values.fullName} onChange={(e) => onChange('fullName', e.target.value)} onBlur={() => onBlur && onBlur('fullName')} className={`w-full bg-[var(--bg-input)] border rounded-lg px-3 py-3 text-[var(--text-primary)] text-base lg:text-sm outline-none transition-all placeholder-[var(--text-placeholder)] ${errors.fullName ? 'border-red-500/50 focus:border-red-500' : 'border-[var(--border-color)] focus:border-blue-600'}`} />
@@ -314,7 +321,7 @@ const InternalCheckoutForm = ({ totalDue, config, billingDetails, setBillingDeta
              body: JSON.stringify({ paymentIntentId: paymentIntent.id })
          });
          trackPurchase(paymentIntent.id, totalDue, currency, config.products);
-         navigate('/order-confirmation');
+         navigate('/order-confirmation', { state: { customLink: config.customThankYouLink } });
       }
     } catch (err: any) {
        setErrorMessage(err.message || "Network error. Please try again.");
@@ -365,7 +372,7 @@ const ManualCheckoutForm = ({ config, settings, billingDetails, setBillingDetail
         if (!res.ok) throw new Error('Failed to create order');
         const data = await res.json();
         
-        navigate('/order-confirmation');
+        navigate('/order-confirmation', { state: { customLink: config.customThankYouLink } });
     } catch (err: any) {
         setErrorMessage("Could not submit order. Please try again.");
         setIsProcessing(false);
@@ -389,7 +396,7 @@ const ManualCheckoutForm = ({ config, settings, billingDetails, setBillingDetail
 
 // ... Bank and Crypto Forms Unchanged but omitting for brevity in this response ...
 // (Assume BankTransferForm and CryptoPaymentForm exist as before)
-const BankTransferForm = ({ settings, billingDetails, setBillingDetails, onValidationFailed, errors, t }: any) => {
+const BankTransferForm = ({ settings, config, billingDetails, setBillingDetails, onValidationFailed, errors, t }: any) => {
   const [reference, setReference] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
@@ -405,7 +412,7 @@ const BankTransferForm = ({ settings, billingDetails, setBillingDetails, onValid
     setIsProcessing(true);
     // Simulate API call
     setTimeout(() => {
-        navigate('/order-confirmation');
+        navigate('/order-confirmation', { state: { customLink: config.customThankYouLink } });
     }, 1500);
   };
 
@@ -455,7 +462,7 @@ const BankTransferForm = ({ settings, billingDetails, setBillingDetails, onValid
   )
 }
 
-const CryptoPaymentForm = ({ settings, billingDetails, setBillingDetails, onValidationFailed, errors, t }: any) => {
+const CryptoPaymentForm = ({ settings, config, billingDetails, setBillingDetails, onValidationFailed, errors, t }: any) => {
     const [selectedCoin, setSelectedCoin] = useState(settings.cryptoOptions?.[0] || 'BTC');
     const [isProcessing, setIsProcessing] = useState(false);
     const navigate = useNavigate();
@@ -464,7 +471,7 @@ const CryptoPaymentForm = ({ settings, billingDetails, setBillingDetails, onVali
         e.preventDefault();
         if (!onValidationFailed()) return;
         setIsProcessing(true);
-        setTimeout(() => navigate('/order-confirmation'), 1500);
+        setTimeout(() => navigate('/order-confirmation', { state: { customLink: config.customThankYouLink } }), 1500);
     };
 
     return (
@@ -516,6 +523,7 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [cardState, setCardState] = useState({ cardNumber: '', expiry: '', cvc: '' });
   const [isProcessing, setIsProcessing] = useState(false);
+  const collectPhone = config.collectPhoneNumber !== false; // Default to true if undefined
   
   // Upsell State (Multiple)
   const [selectedUpsellIds, setSelectedUpsellIds] = useState<Set<string>>(new Set());
@@ -558,7 +566,7 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
           else if (!isValidEmail(email)) newErrors.email = t.invalid;
           else newErrors.email = '';
       }
-      if (field === 'phoneNumber') {
+      if (field === 'phoneNumber' && collectPhone) {
           if (!phoneNumber) newErrors.phoneNumber = t.required;
           else newErrors.phoneNumber = '';
       }
@@ -637,7 +645,9 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
     const newErrors: { [key: string]: string } = {};
     if (!fullName || fullName.length < 2) newErrors.fullName = t.required;
     if (!email || !isValidEmail(email)) newErrors.email = t.invalid;
-    if (!phoneNumber || phoneNumber.length < 6) newErrors.phoneNumber = t.invalid;
+    if (collectPhone) {
+        if (!phoneNumber || phoneNumber.length < 6) newErrors.phoneNumber = t.invalid;
+    }
     if (isDemo && paymentMethod === 'stripe') {
         if (cardState.cardNumber.length < 16) newErrors.cardNumber = t.invalid;
     }
@@ -648,7 +658,7 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
   const handleManualOrderPreview = () => {
      if (!validateForm()) return;
      setIsProcessing(true);
-     setTimeout(() => { setIsProcessing(false); navigate('/order-confirmation'); }, 1500);
+     setTimeout(() => { setIsProcessing(false); navigate('/order-confirmation', { state: { customLink: config.customThankYouLink } }); }, 1500);
   };
 
   const appearance = config.appearance || 'dark';
@@ -704,14 +714,18 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
                            </div>
                            <div className="flex-1">
                                <h3 className="font-bold text-[var(--text-primary)] text-sm">{upsell.title}</h3>
-                               {upsell.offerType === 'multi_month' && (
+                               {upsell.offerType === 'multi_month' && upsell.monthlyPrice && (
                                    <p className="text-[10px] text-[#f97316] font-bold mt-0.5">
-                                       {upsell.durationMonths} Months Bundle
+                                       {currencySymbol}{upsell.monthlyPrice}/mo × {upsell.durationMonths} months
                                    </p>
                                )}
                            </div>
                            <div className="font-bold text-[var(--text-primary)] text-sm">
-                               {currencySymbol}{upsell.price.toFixed(2)}
+                               {currencySymbol}
+                               {(upsell.offerType === 'multi_month' && upsell.monthlyPrice 
+                                   ? upsell.monthlyPrice 
+                                   : upsell.price
+                               ).toFixed(2)}
                            </div>
                       </div>
                   );
@@ -781,7 +795,7 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                   
                   {/* Global Customer Fields */}
-                  <CustomerFields values={{ fullName, email, phoneNumber, country }} onChange={updateBilling} errors={errors} onBlur={handleBillingBlur} t={t} />
+                  <CustomerFields values={{ fullName, email, phoneNumber, country }} onChange={updateBilling} errors={errors} onBlur={handleBillingBlur} t={t} collectPhone={collectPhone} />
                   
                   {/* Multiple Order Bumps */}
                   {allUpsells.length > 0 && (
@@ -800,7 +814,13 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
                                      <div className="flex-1">
                                          <div className="flex justify-between items-start">
                                              <h4 className="font-bold text-[var(--text-primary)] text-sm">{upsell.title}</h4>
-                                             <span className="font-bold text-[#f97316] text-sm">{currencySymbol}{upsell.price.toFixed(2)}</span>
+                                             <span className="font-bold text-[#f97316] text-sm">
+                                                 {currencySymbol}
+                                                 {upsell.offerType === 'multi_month' && upsell.monthlyPrice
+                                                     ? upsell.monthlyPrice.toFixed(2)
+                                                     : upsell.price.toFixed(2)
+                                                 }
+                                             </span>
                                          </div>
                                          <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">{upsell.description}</p>
                                          
@@ -869,10 +889,10 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
                                               <ManualCheckoutForm config={config} settings={settings} billingDetails={{ fullName, email, phoneNumber, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} selectedUpsellIds={selectedUpsellIds} />
                                           )}
                                           {method === 'bank_transfer' && (
-                                              <BankTransferForm settings={settings} billingDetails={{ fullName, email, phoneNumber, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} />
+                                              <BankTransferForm settings={settings} config={config} billingDetails={{ fullName, email, phoneNumber, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} />
                                           )}
                                           {method === 'crypto' && (
-                                              <CryptoPaymentForm settings={settings} billingDetails={{ fullName, email, phoneNumber, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} />
+                                              <CryptoPaymentForm settings={settings} config={config} billingDetails={{ fullName, email, phoneNumber, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} />
                                           )}
                                       </div>
                                   )}

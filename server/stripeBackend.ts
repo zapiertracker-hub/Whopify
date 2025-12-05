@@ -267,6 +267,7 @@ app.post("/api/create-manual-order", async (req, res) => {
     currency: settings.currency,
     status: "pending",
     date: new Date().toISOString().split('T')[0],
+    timestamp: new Date().toISOString(),
     items: (checkout.products?.length || 0) + (Array.isArray(selectedUpsellIds) ? selectedUpsellIds.length : 0),
     checkoutId,
     paymentProvider: "manual",
@@ -279,20 +280,81 @@ app.post("/api/create-manual-order", async (req, res) => {
   res.json({ success: true, orderId });
 });
 
-// 9. Verify Stripe Connection
+// 9. Verify Stripe Payment (Records successful Stripe orders)
+app.post('/api/verify-payment', async (req, res) => {
+  const { paymentIntentId } = req.body;
+  if (!paymentIntentId) return res.status(400).json({ error: "Missing paymentIntentId" });
+
+  const stripe = await ensureStripe();
+  if (!stripe) return res.status(500).json({ error: "Stripe not configured" });
+
+  try {
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.status !== 'succeeded') {
+       return res.status(400).json({ error: "Payment not succeeded" });
+    }
+
+    // Check if order already exists to prevent duplicates
+    const dbData = loadDb();
+    if (dbData.orders.some((o: any) => o.id === paymentIntent.id)) {
+        return res.json({ success: true, orderId: paymentIntent.id, message: "Order already recorded" });
+    }
+
+    // Attempt to extract customer details from the latest charge
+    let customerName = 'Guest';
+    let customerEmail = paymentIntent.receipt_email || '';
+    let customerCountry = '';
+
+    if (paymentIntent.latest_charge) {
+        const chargeId = typeof paymentIntent.latest_charge === 'string' ? paymentIntent.latest_charge : paymentIntent.latest_charge.id;
+        try {
+            const charge = await stripe.charges.retrieve(chargeId);
+            customerName = charge.billing_details?.name || customerName;
+            customerEmail = charge.billing_details?.email || customerEmail;
+            customerCountry = charge.billing_details?.address?.country || '';
+        } catch (e) {
+            console.error("Could not retrieve charge details", e);
+        }
+    }
+
+    const checkoutId = paymentIntent.metadata.checkout_id;
+    const upsellsCount = paymentIntent.metadata.upsells_count ? parseInt(paymentIntent.metadata.upsells_count) : 0;
+
+    const order = {
+        id: paymentIntent.id,
+        amount: (paymentIntent.amount / 100).toFixed(2),
+        amount_cents: paymentIntent.amount,
+        currency: paymentIntent.currency.toUpperCase(),
+        status: "succeeded",
+        date: new Date().toISOString().split('T')[0],
+        timestamp: new Date().toISOString(),
+        items: 1 + upsellsCount,
+        checkoutId: checkoutId,
+        paymentProvider: "stripe",
+        customerEmail,
+        customerName,
+        customerCountry
+    };
+
+    await db.saveOrder(order);
+
+    res.json({ success: true, orderId: order.id });
+
+  } catch (e: any) {
+    console.error("Verify Payment Error", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 10. Verify Stripe Connection (Settings)
 app.post('/api/verify-connection', async (req, res) => {
     const key = req.headers['x-stripe-secret-key'] as string;
     if (!key) return res.status(400).json({ status: 'error', message: 'No key provided' });
 
     try {
-        const stripe = new Stripe(key, { apiVersion: '2023-10-16' });
-        // Retrieve account details to verify key validity
-        // Note: For limited keys this might fail, using balance retrieval as a lighter check or account retrieval
-        // We'll try listing 1 payment intent or balance, but balance requires extra scopes. 
-        // Simplest check is just instantiation if we don't make a call, but that doesn't verify auth.
-        // Let's try retrieving the account associated with the key (if standard key) or just return success if it looks like a test key in beta.
-        
-        // For this demo environment, we'll simulate a check if it starts with 'sk_'
+        // Simple check: create instance and check basic format. 
+        // Real verification would ideally make a lightweight API call (like listing 1 customer or retrieving account).
         if (key.startsWith('sk_')) {
              res.json({ status: 'connected', mode: key.startsWith('sk_test') ? 'Test Mode' : 'Live Mode', currency: 'USD' });
         } else {
@@ -303,7 +365,7 @@ app.post('/api/verify-connection', async (req, res) => {
     }
 });
 
-// 10. Dashboard Analytics
+// 11. Dashboard Analytics
 app.get('/api/analytics', async (req, res) => {
     const data = loadDb();
     const orders = data.orders || [];
@@ -312,10 +374,10 @@ app.get('/api/analytics', async (req, res) => {
     const totalRevenue = orders.reduce((acc: number, o: any) => acc + parseFloat(o.amount || 0), 0);
     const uniqueCustomers = new Set(orders.map((o: any) => o.customerEmail)).size;
     
-    // Mock daily chart based on recent activity (or random if empty)
+    // Mock daily chart based on recent activity
     const daily = Array.from({length: 7}, (_, i) => ({
          name: new Date(Date.now() - (6-i)*86400000).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
-         revenue: orders.length > 0 ? totalRevenue / 7 : Math.floor(Math.random() * 500)
+         revenue: orders.length > 0 ? totalRevenue / (orders.length > 7 ? orders.length : 7) : Math.floor(Math.random() * 500) // Rough distribution for demo
     }));
 
     res.json({
@@ -324,7 +386,7 @@ app.get('/api/analytics', async (req, res) => {
             orders: orders.length,
             customers: uniqueCustomers,
             refunds: 0,
-            gross: totalRevenue // Simplified
+            gross: totalRevenue 
         },
         charts: {
             daily,
@@ -338,6 +400,18 @@ app.get('/api/analytics', async (req, res) => {
             ]
         }
     });
+});
+
+// 12. Get Orders
+app.get('/api/orders', async (req, res) => {
+    const data = loadDb();
+    res.json(data.orders || []);
+});
+
+// 13. Get Customers
+app.get('/api/customers', async (req, res) => {
+    const data = loadDb();
+    res.json(data.customers || []);
 });
 
 app.listen(port, () => {

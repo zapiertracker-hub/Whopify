@@ -1,9 +1,30 @@
 
-import React from 'react';
-import { CheckCircle2, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+
+import React, { useEffect, useState } from 'react';
+import { CheckCircle2, ArrowRight, ExternalLink } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 
 const OrderConfirmation = () => {
+  const location = useLocation();
+  const { customLink } = location.state || {};
+  const [countdown, setCountdown] = useState(5);
+
+  useEffect(() => {
+    if (customLink && customLink.enabled && customLink.url) {
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            window.location.href = customLink.url;
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [customLink]);
+
   return (
     <div className="min-h-screen bg-[#020202] flex items-center justify-center p-4">
       <div className="bg-[#111111] border border-gray-800 rounded-3xl p-8 max-w-md w-full text-center shadow-2xl">
@@ -13,7 +34,7 @@ const OrderConfirmation = () => {
         
         <h1 className="text-3xl font-bold text-white mb-2">Order Confirmed!</h1>
         <p className="text-gray-400 mb-8">
-          Thank you for your purchase. We've sent a confirmation email with your order details and access link.
+          Thank you for your purchase. We've sent a confirmation email with your order details.
         </p>
 
         <div className="space-y-4">
@@ -28,9 +49,21 @@ const OrderConfirmation = () => {
             </div>
           </div>
 
+          {customLink && customLink.enabled && customLink.url ? (
+              <div className="bg-emerald-900/20 border border-emerald-900/50 p-4 rounded-xl text-center space-y-2 animate-pulse">
+                  <p className="text-emerald-400 font-medium">Redirecting in {countdown} seconds...</p>
+                  <a 
+                      href={customLink.url}
+                      className="text-xs text-emerald-500/70 hover:text-emerald-400 hover:underline"
+                  >
+                      Click here if not redirected
+                  </a>
+              </div>
+          ) : null}
+
           <Link 
             to="/" 
-            className="block w-full bg-[#f97316] hover:bg-[#ea580c] text-black font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+            className="block w-full text-black font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 bg-[#f97316] hover:bg-[#ea580c]"
           >
             Return to Store <ArrowRight size={18} />
           </Link>

@@ -47,6 +47,9 @@ const CITY_COORDS: Record<string, [number, number]> = {
   'Moscow': [55.7558, 37.6173]
 };
 
+// Detect API URL
+const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+
 // --- Components ---
 
 const Card = ({ children, className = '', noPadding = false }: { children?: React.ReactNode, className?: string, noPadding?: boolean }) => (
@@ -220,10 +223,12 @@ const AnalyticsPage = () => {
       const fetchData = async () => {
           setLoading(true);
           try {
-              const res = await fetch(`http://localhost:3000/api/orders`);
+              const res = await fetch(`${API_URL}/api/orders`);
               if (res.ok) {
                   const data = await res.json();
-                  setOrders(data);
+                  // Ensure orders are sorted by date/time descending so new ones appear first
+                  // Assuming DB returns order of insertion (oldest first), we reverse it.
+                  setOrders(Array.isArray(data) ? [...data].reverse() : []);
               }
           } catch (e) {
               console.error("Failed to fetch orders, using context checkouts where possible.");
@@ -232,11 +237,15 @@ const AnalyticsPage = () => {
           }
       };
       fetchData();
+      
+      // Poll for new data every 10 seconds if in live mode
+      const interval = setInterval(fetchData, 10000);
+      return () => clearInterval(interval);
   }, []);
 
   // Process Data based on Range
   useEffect(() => {
-      if (!orders && !checkouts) return;
+      if (!orders) return;
 
       const now = new Date();
       const cutoff = new Date();
@@ -310,10 +319,10 @@ const AnalyticsPage = () => {
       const recent = orders.slice(0, 20); // Last 20 orders
       const locs = recent.map(o => {
           // Fallback mapping since order country might be simple string
-          if (o.customerCountry === 'Morocco') return 'Casablanca';
-          if (o.customerCountry === 'United States') return 'New York';
-          if (o.customerCountry === 'France') return 'Paris';
-          if (o.customerCountry === 'United Kingdom') return 'London';
+          if (o.customerCountry === 'Morocco' || o.customerCountry === 'MA') return 'Casablanca';
+          if (o.customerCountry === 'United States' || o.customerCountry === 'US') return 'New York';
+          if (o.customerCountry === 'France' || o.customerCountry === 'FR') return 'Paris';
+          if (o.customerCountry === 'United Kingdom' || o.customerCountry === 'GB') return 'London';
           return 'New York'; // Default
       });
       return [...new Set(locs)];

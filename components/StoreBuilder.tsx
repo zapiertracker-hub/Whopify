@@ -1,4 +1,5 @@
 
+
 import React, { useState, useContext, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppContext } from '../AppContext';
@@ -10,7 +11,7 @@ import {
   X, Upload, AlertCircle, CheckCircle2, Tablet, Monitor, Smartphone, Palette,
   Sun, Moon, Link as LinkIcon, Check, DollarSign, ExternalLink, Copy, Sparkles,
   Loader2, Trash2, Package, RefreshCw, CreditCard, Calendar, PieChart, Eye,
-  Wallet, Landmark, Banknote, ArrowUp, ArrowDown, ChevronDown, Globe, Zap, Edit2
+  Wallet, Landmark, Banknote, ArrowUp, ArrowDown, ChevronDown, Globe, Zap, Edit2, User
 } from 'lucide-react';
 
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
@@ -20,7 +21,7 @@ const StoreBuilder = () => {
   const navigate = useNavigate();
   const { checkouts, updateCheckout, settings } = useContext(AppContext);
   
-  const [activeTab, setActiveTab] = useState<'settings' | 'products' | 'upsells'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'products' | 'upsells' | 'thankyou'>('settings');
   const [previewMode, setPreviewMode] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   
   const [config, setConfig] = useState<CheckoutPage | null>(null);
@@ -101,15 +102,18 @@ const StoreBuilder = () => {
   };
 
   const openNewUpsellModal = () => {
+      // Defaulting to monthly pricing logic as requested
+      const defaultMonthly = 2.99;
+      const defaultMonths = 12;
       setEditingUpsell({
           id: Date.now().toString(),
           enabled: true,
           title: '',
           description: '',
-          price: 10,
-          offerType: 'one_time',
-          monthlyPrice: 2.99,
-          durationMonths: 12
+          price: parseFloat((defaultMonthly * defaultMonths).toFixed(2)),
+          offerType: 'multi_month',
+          monthlyPrice: defaultMonthly,
+          durationMonths: defaultMonths
       });
       setIsUpsellModalOpen(true);
   };
@@ -124,8 +128,15 @@ const StoreBuilder = () => {
       
       let updates: any = { [field]: value };
 
-      // Auto-calculate Total Price if in multi-month mode
-      if (editingUpsell.offerType === 'multi_month' || (field === 'offerType' && value === 'multi_month')) {
+      if (field === 'offerType' && value === 'multi_month') {
+          // Initialize defaults when switching to multi-month
+          const monthly = editingUpsell.monthlyPrice || 2.99;
+          const months = editingUpsell.durationMonths || 12;
+          updates.monthlyPrice = monthly;
+          updates.durationMonths = months;
+          updates.price = parseFloat((monthly * months).toFixed(2));
+      } else if (editingUpsell.offerType === 'multi_month' || (field === 'offerType' && value === 'multi_month')) {
+          // Calculate sum if in multi-month mode
           const monthly = field === 'monthlyPrice' ? parseFloat(value) : (editingUpsell.monthlyPrice || 0);
           const months = field === 'durationMonths' ? parseInt(value) : (editingUpsell.durationMonths || 12);
           updates.price = parseFloat((monthly * months).toFixed(2));
@@ -428,6 +439,7 @@ const StoreBuilder = () => {
              <button onClick={() => setActiveTab('settings')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all active:scale-95 ${activeTab === 'settings' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}><Settings size={16} /> Settings</button>
              <button onClick={() => setActiveTab('products')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all active:scale-95 ${activeTab === 'products' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}><ShoppingBag size={16} /> Products</button>
              <button onClick={() => setActiveTab('upsells')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all active:scale-95 ${activeTab === 'upsells' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}><Zap size={16} /> Upsells</button>
+             <button onClick={() => setActiveTab('thankyou')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all active:scale-95 ${activeTab === 'thankyou' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}><CheckCircle2 size={16} /> Thank You Page</button>
           </div>
           <button onClick={handleOpenLive} className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95"><Eye size={16} /> Live Preview</button>
         </div>
@@ -440,7 +452,6 @@ const StoreBuilder = () => {
 
           {activeTab === 'settings' && (
              <div className="p-6 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-800 h-full">
-                {/* ... General, Branding, Payment Methods Sections (Unchanged) ... */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2"><Settings size={16} /> General</h3>
                     <div className="space-y-4">
@@ -457,6 +468,25 @@ const StoreBuilder = () => {
                         </div>
                     </div>
                 </div>
+                
+                <div className="h-px bg-gray-200 dark:bg-gray-800"></div>
+                
+                <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2"><User size={16} /> Customer Info</h3>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white block">Phone Number</span>
+                            <span className="text-xs text-gray-500">Collect customer phone number at checkout.</span>
+                        </div>
+                        <button 
+                            onClick={() => setConfig({ ...config, collectPhoneNumber: !config.collectPhoneNumber })}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.collectPhoneNumber !== false ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ${config.collectPhoneNumber !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                    </div>
+                </div>
+
                 <div className="h-px bg-gray-200 dark:bg-gray-800"></div>
                 <div className="space-y-4">
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2"><Palette size={16} /> Branding</h3>
@@ -476,6 +506,7 @@ const StoreBuilder = () => {
                         </div>
                     </div>
                 </div>
+
                 <div className="h-px bg-gray-200 dark:bg-gray-800"></div>
                 <div className="space-y-4">
                      <div className="flex justify-between items-center">
@@ -604,6 +635,58 @@ const StoreBuilder = () => {
                               </div>
                           </div>
                       ))}
+                  </div>
+              </div>
+          )}
+
+          {activeTab === 'thankyou' && (
+              <div className="flex flex-col h-full">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+                      <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                          <CheckCircle2 size={16} /> Thank You Page
+                      </h2>
+                      <p className="text-xs text-gray-500 mt-1">Customize the post-purchase experience.</p>
+                  </div>
+                  <div className="p-6 space-y-6 overflow-y-auto">
+                      <div className="space-y-4 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                          <div className="flex items-center justify-between">
+                              <div>
+                                  <label className="text-sm font-medium text-gray-900 dark:text-white">Custom Redirect</label>
+                                  <p className="text-xs text-gray-500 mt-1">Automatically redirect to a URL after 5 seconds.</p>
+                              </div>
+                              <button
+                                  onClick={() => setConfig({
+                                      ...config,
+                                      customThankYouLink: {
+                                          enabled: !(config.customThankYouLink?.enabled),
+                                          text: '', // Clear legacy text
+                                          url: config.customThankYouLink?.url || ''
+                                      }
+                                  })}
+                                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.customThankYouLink?.enabled ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}
+                              >
+                                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ${config.customThankYouLink?.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                              </button>
+                          </div>
+                          
+                          {config.customThankYouLink?.enabled && (
+                              <div className="space-y-3 pt-2 animate-in fade-in slide-in-from-top-2">
+                                  <div>
+                                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Target URL</label>
+                                      <input 
+                                          type="url" 
+                                          value={config.customThankYouLink.url} 
+                                          onChange={(e) => setConfig({
+                                              ...config, 
+                                              customThankYouLink: { ...config.customThankYouLink!, url: e.target.value }
+                                          })}
+                                          className="w-full px-3 py-2 bg-white dark:bg-black border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:border-[#f97316] outline-none"
+                                          placeholder="https://your-site.com/thank-you"
+                                      />
+                                  </div>
+                              </div>
+                          )}
+                      </div>
                   </div>
               </div>
           )}
