@@ -48,7 +48,7 @@ import AppsPage from './components/AppsPage';
 import DiscountsPage from './components/DiscountsPage';
 import { AppContext, UserProfile } from './AppContext'; 
 
-import { Language, CheckoutPage, StoreSettings, Theme } from './types';
+import { Language, CheckoutPage, StoreSettings, Theme, Coupon } from './types';
 
 // Detect API URL: if production (hosted), use relative path. If local, use localhost:3000
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
@@ -96,6 +96,11 @@ const defaultSettings: StoreSettings = {
   // Security Defaults
   twoFactorEnabled: false
 };
+
+const defaultCoupons: Coupon[] = [
+  { id: '1', code: 'WELCOME10', type: 'percentage', value: 10, status: 'active', usedCount: 12 },
+  { id: '2', code: 'SAVE20', type: 'fixed', value: 20, status: 'active', usedCount: 5 }
+];
 
 interface LayoutProps {
   children?: ReactNode;
@@ -612,6 +617,7 @@ export default function App() {
   // Global State
   const [checkouts, setCheckouts] = useState<CheckoutPage[]>(initialCheckouts);
   const [settings, setSettings] = useState<StoreSettings>(defaultSettings);
+  const [coupons, setCoupons] = useState<Coupon[]>(defaultCoupons);
   
   // User Profile State
   const [user, setUser] = useState<UserProfile>({
@@ -664,13 +670,22 @@ export default function App() {
             // Try loading from localStorage
             const localSettings = localStorage.getItem('whopify_settings');
             const localCheckouts = localStorage.getItem('whopify_checkouts');
+            const localCoupons = localStorage.getItem('whopify_coupons');
 
             if (localSettings) setSettings(JSON.parse(localSettings));
             if (localCheckouts) setCheckouts(JSON.parse(localCheckouts));
+            if (localCoupons) setCoupons(JSON.parse(localCoupons));
         }
     };
     fetchData();
   }, []);
+
+  // Persist Coupons locally
+  useEffect(() => {
+      if (isBetaMode) {
+          localStorage.setItem('whopify_coupons', JSON.stringify(coupons));
+      }
+  }, [coupons, isBetaMode]);
 
   // Crisp Chat Injection Logic
   useEffect(() => {
@@ -801,6 +816,18 @@ export default function App() {
     }
   };
 
+  const addCoupon = (coupon: Coupon) => {
+      setCoupons(prev => [...prev, coupon]);
+  };
+
+  const updateCoupon = (id: string, updates: Partial<Coupon>) => {
+      setCoupons(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+
+  const deleteCoupon = (id: string) => {
+      setCoupons(prev => prev.filter(c => c.id !== id));
+  };
+
   useEffect(() => {
     document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
     document.documentElement.lang = language;
@@ -826,6 +853,10 @@ export default function App() {
       deleteCheckout,
       settings,
       saveSettings,
+      coupons,
+      addCoupon,
+      updateCoupon,
+      deleteCoupon,
       user,
       updateUser
     }}>

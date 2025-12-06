@@ -1,3 +1,4 @@
+
 import React, { useState, useContext, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppContext } from '../AppContext';
@@ -490,120 +491,220 @@ const StoreBuilder = () => {
 
           {activeTab === 'settings' && (
              <div className="p-6 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-800 h-full">
-                <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2"><Settings size={16} /> General</h3>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Internal Name</label>
-                            <input type="text" value={config.name} onChange={(e) => setConfig({...config, name: e.target.value})} className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm focus:border-gray-500 dark:focus:border-white"/>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Checkout Language</label>
-                            <select value={config.language || 'en'} onChange={(e) => setConfig({...config, language: e.target.value as any})} className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white text-sm focus:border-gray-500 dark:focus:border-white appearance-none cursor-pointer">
-                                <option value="en">English (US)</option>
-                                <option value="fr">Français (French)</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
                 
-                <div className="h-px bg-gray-200 dark:bg-gray-800"></div>
-                
+                {/* General Settings Card */}
                 <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2"><User size={16} /> Customer Info</h3>
-                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <Settings size={16} className="text-[#f97316]" /> General
+                    </h3>
+                    <div className="bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm space-y-5">
+                        {/* Internal Name */}
                         <div>
-                            <span className="text-sm font-medium text-gray-900 dark:text-white block">Phone Number</span>
-                            <span className="text-xs text-gray-500">Collect customer phone number at checkout.</span>
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Internal Name</label>
+                            <input 
+                                type="text" 
+                                value={config.name} 
+                                onChange={(e) => setConfig({...config, name: e.target.value})} 
+                                className="w-full px-4 py-3 bg-gray-50 dark:bg-[#161616] border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:border-[#f97316] focus:ring-1 focus:ring-[#f97316] outline-none transition-all placeholder-gray-400"
+                                placeholder="e.g. Black Friday Sale"
+                            />
                         </div>
-                        <button 
-                            onClick={() => setConfig({ ...config, collectPhoneNumber: !config.collectPhoneNumber })}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.collectPhoneNumber !== false ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}
-                        >
-                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ${config.collectPhoneNumber !== false ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
+                        {/* Language */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Checkout Language</label>
+                            <div className="relative">
+                                <select 
+                                    value={config.language || 'en'} 
+                                    onChange={(e) => setConfig({...config, language: e.target.value as any})} 
+                                    className="w-full px-4 py-3 bg-gray-50 dark:bg-[#161616] border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:border-[#f97316] focus:ring-1 focus:ring-[#f97316] outline-none appearance-none cursor-pointer"
+                                >
+                                    <option value="en">English (US)</option>
+                                    <option value="fr">Français (French)</option>
+                                </select>
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                    <ChevronDown size={14} />
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div className="h-px bg-gray-200 dark:bg-gray-800"></div>
+                {/* Customer Info */}
                 <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2"><Palette size={16} /> Branding</h3>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Checkout Logo</label>
-                            <div className="flex items-center gap-4 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                                {config.logo ? <div className="w-12 h-12 bg-gray-100 dark:bg-black rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shrink-0 flex items-center justify-center"><img src={config.logo} alt="Logo" className="max-w-full max-h-full object-contain" /></div> : <div className="w-12 h-12 bg-gray-100 dark:bg-black rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center shrink-0"><ImageIcon size={20} className="text-gray-400 dark:text-gray-500" /></div>}
-                                <label className="cursor-pointer px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:text-black dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-600 transition-all active:scale-95">
-                                    Upload Logo <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
-                                </label>
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <User size={16} className="text-[#f97316]" /> Customer Info
+                    </h3>
+                    <div className="bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+                        <div 
+                            className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer group ${config.collectPhoneNumber !== false ? 'bg-orange-50 dark:bg-orange-900/10 border-[#f97316]/30' : 'bg-gray-50 dark:bg-[#161616] border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
+                            onClick={() => setConfig({ ...config, collectPhoneNumber: config.collectPhoneNumber === false ? true : false })}
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className={`p-2.5 rounded-lg border transition-colors ${config.collectPhoneNumber !== false ? 'bg-[#f97316] border-[#f97316] text-white shadow-md shadow-orange-500/20' : 'bg-white dark:bg-black border-gray-200 dark:border-gray-800 text-gray-500'}`}>
+                                    <Smartphone size={18} />
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-sm font-bold transition-colors ${config.collectPhoneNumber !== false ? 'text-[#f97316]' : 'text-gray-900 dark:text-white'}`}>Phone Number</span>
+                                        {config.collectPhoneNumber !== false && (
+                                            <span className="text-[9px] font-extrabold bg-[#f97316] text-white px-1.5 py-0.5 rounded uppercase tracking-wider shadow-sm">Required</span>
+                                        )}
+                                    </div>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 block leading-relaxed">
+                                        Essential for order updates, SMS marketing, and recovering abandoned checkouts.
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#f97316] ${config.collectPhoneNumber !== false ? 'bg-[#f97316]' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition transition-transform ${config.collectPhoneNumber !== false ? 'translate-x-6' : 'translate-x-1'}`} />
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                {/* Branding */}
+                <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <Palette size={16} className="text-[#f97316]" /> Branding
+                    </h3>
+                    <div className="bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm space-y-6">
+                        {/* Logo */}
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Checkout Theme</label>
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Checkout Logo</label>
+                            <div className="p-4 bg-gray-50 dark:bg-[#161616] rounded-xl border border-gray-200 dark:border-gray-700 flex items-center gap-4">
+                                <div className="w-16 h-16 bg-white dark:bg-black rounded-lg border border-gray-200 dark:border-gray-800 flex items-center justify-center overflow-hidden shrink-0 relative group shadow-sm">
+                                    {config.logo ? (
+                                        <img src={config.logo} alt="Logo" className="w-full h-full object-contain p-2" />
+                                    ) : (
+                                        <ImageIcon size={24} className="text-gray-300 dark:text-gray-600" />
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all active:scale-95 shadow-sm">
+                                        <Upload size={14} />
+                                        <span>Upload Logo</span>
+                                        <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                                    </label>
+                                    {config.logo && (
+                                        <button onClick={() => setConfig({...config, logo: undefined})} className="ml-2 text-xs text-red-500 hover:underline">Remove</button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Theme */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Checkout Theme</label>
                             <div className="grid grid-cols-2 gap-3">
                                 <button 
                                     onClick={() => setConfig({...config, appearance: 'light'})}
-                                    className={`relative p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${config.appearance === 'light' ? 'bg-white border-[#f97316] text-black ring-1 ring-[#f97316] shadow-sm' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'}`}
+                                    className={`group relative p-4 rounded-xl border transition-all active:scale-[0.98] ${config.appearance === 'light' ? 'bg-white border-[#f97316] shadow-sm ring-1 ring-[#f97316]' : 'bg-gray-50 dark:bg-[#161616] border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
                                 >
-                                    <Sun size={20} className={config.appearance === 'light' ? 'text-[#f97316]' : ''} />
-                                    <span className="text-xs font-bold">Light Mode</span>
+                                    <div className="flex flex-col items-center gap-2">
+                                        <Sun size={20} className={config.appearance === 'light' ? 'text-[#f97316]' : 'text-gray-400'} />
+                                        <span className={`text-sm font-bold ${config.appearance === 'light' ? 'text-gray-900' : 'text-gray-500 dark:text-gray-400'}`}>Light Mode</span>
+                                    </div>
                                     {config.appearance === 'light' && <div className="absolute top-2 right-2 w-2 h-2 bg-[#f97316] rounded-full"></div>}
                                 </button>
                                 <button 
                                     onClick={() => setConfig({...config, appearance: 'dark'})}
-                                    className={`relative p-3 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all ${config.appearance === 'dark' || !config.appearance ? 'bg-[#111111] border-[#f97316] text-white ring-1 ring-[#f97316] shadow-sm' : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'}`}
+                                    className={`group relative p-4 rounded-xl border transition-all active:scale-[0.98] ${config.appearance === 'dark' || !config.appearance ? 'bg-[#050505] border-[#f97316] shadow-sm ring-1 ring-[#f97316]' : 'bg-gray-50 dark:bg-[#161616] border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
                                 >
-                                    <Moon size={20} className={config.appearance === 'dark' || !config.appearance ? 'text-[#f97316]' : ''} />
-                                    <span className="text-xs font-bold">Dark Mode</span>
+                                    <div className="flex flex-col items-center gap-2">
+                                        <Moon size={20} className={config.appearance === 'dark' || !config.appearance ? 'text-[#f97316]' : 'text-gray-400'} />
+                                        <span className={`text-sm font-bold ${config.appearance === 'dark' || !config.appearance ? 'text-white' : 'text-gray-500 dark:text-gray-400'}`}>Dark Mode</span>
+                                    </div>
                                     {(config.appearance === 'dark' || !config.appearance) && <div className="absolute top-2 right-2 w-2 h-2 bg-[#f97316] rounded-full"></div>}
                                 </button>
                             </div>
                         </div>
+
+                        {/* Logo Scale */}
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Logo Size ({config.logoScale || 100}%)</label>
-                            <input type="range" min="50" max="200" value={config.logoScale || 100} onChange={(e) => setConfig({...config, logoScale: parseInt(e.target.value)})} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-black dark:accent-white" />
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Logo Size ({config.logoScale || 100}%)</label>
+                            </div>
+                            <input 
+                                type="range" 
+                                min="50" 
+                                max="150" 
+                                value={config.logoScale || 100} 
+                                onChange={(e) => setConfig({...config, logoScale: parseInt(e.target.value)})} 
+                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#f97316]" 
+                            />
                         </div>
                     </div>
                 </div>
 
-                <div className="h-px bg-gray-200 dark:bg-gray-800"></div>
+                {/* Payment Methods */}
                 <div className="space-y-4">
-                     <div className="flex justify-between items-center">
-                        <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2"><Wallet size={16} /> Payment Methods</h3>
-                     </div>
-                     <p className="text-xs text-gray-500">Configure which payment gateways are shown on this checkout.<br/><span className="text-xs opacity-70">(Only globally enabled gateways can be added)</span></p>
-                     <div className="space-y-2">
-                        {config.paymentMethods.map((method, index) => {
-                            const isEnabledGlobally = isMethodEnabledGlobally(method);
-                            return (
-                                <div key={method} className={`flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border ${isEnabledGlobally ? 'border-gray-200 dark:border-gray-700' : 'border-red-200 dark:border-red-900/30'}`}>
-                                    <div className="flex items-center gap-3">
-                                        <div className={`p-1.5 rounded border ${isEnabledGlobally ? 'bg-white dark:bg-black border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300' : 'bg-red-50 dark:bg-red-900/20 text-red-500'}`}>{getMethodIcon(method)}</div>
-                                        <div><span className="text-sm font-medium text-gray-900 dark:text-white block">{getMethodName(method)}</span>{!isEnabledGlobally && <span className="text-[10px] text-red-500 font-bold flex items-center gap-1"><AlertCircle size={10} /> Disabled in Global Settings</span>}</div>
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <Wallet size={16} className="text-[#f97316]" /> Payment Methods
+                    </h3>
+                    <div className="bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">
+                            Configure which payment gateways are shown on this checkout. 
+                            <br/><span className="opacity-70">(Only globally enabled gateways can be added)</span>
+                        </p>
+                        
+                        {/* Active Methods List - Reordered */}
+                        <div className="space-y-2 mb-6">
+                            {config.paymentMethods.map((method, index) => {
+                                const isEnabledGlobally = isMethodEnabledGlobally(method);
+                                return (
+                                    <div key={method} className="group flex items-center justify-between p-3 bg-gray-50 dark:bg-[#161616] rounded-xl border border-gray-200 dark:border-gray-700 hover:border-[#f97316]/30 transition-all select-none">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-lg border ${isEnabledGlobally ? 'bg-white dark:bg-black border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300' : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30 text-red-500'}`}>
+                                                {getMethodIcon(method)}
+                                            </div>
+                                            <div>
+                                                <span className="text-sm font-bold text-gray-900 dark:text-white block">{getMethodName(method)}</span>
+                                                {!isEnabledGlobally && <span className="text-[10px] text-red-500 font-bold flex items-center gap-1">Requires Global Setup</span>}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <div className="flex flex-col gap-0.5 mr-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                                                <button disabled={index === 0} onClick={() => movePaymentMethod(index, 'up')} className="text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 p-0.5"><ArrowUp size={12} /></button>
+                                                <button disabled={index === config.paymentMethods.length - 1} onClick={() => movePaymentMethod(index, 'down')} className="text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 p-0.5"><ArrowDown size={12} /></button>
+                                            </div>
+                                            <button onClick={() => togglePaymentMethod(method)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"><X size={16} /></button>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-1">
-                                        <button disabled={index === 0} onClick={() => movePaymentMethod(index, 'up')} className="p-1 text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30"><ArrowUp size={14} /></button>
-                                        <button disabled={index === config.paymentMethods.length - 1} onClick={() => movePaymentMethod(index, 'down')} className="p-1 text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30"><ArrowDown size={14} /></button>
-                                        <button onClick={() => togglePaymentMethod(method)} className="ml-2 text-gray-400 hover:text-red-500"><X size={16} /></button>
-                                    </div>
+                                );
+                            })}
+                            {config.paymentMethods.length === 0 && (
+                                <div className="text-center py-6 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-xl">
+                                    <p className="text-xs text-gray-500 font-medium">No payment methods active.</p>
                                 </div>
-                            );
-                        })}
+                            )}
+                        </div>
+
+                        {/* Available Methods */}
                         {availableMethodsToAdd.length > 0 && (
-                            <div className="pt-2">
-                                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Available to Add</label>
-                                <div className="space-y-2">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Add Payment Method</label>
+                                <div className="grid grid-cols-1 gap-2">
                                     {availableMethodsToAdd.map(method => (
-                                        <button key={method} onClick={() => togglePaymentMethod(method)} className="w-full flex items-center gap-3 p-3 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left group">
-                                            <div className="p-1.5 bg-gray-100 dark:bg-gray-800 rounded text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300"><Plus size={16} /></div>
-                                            <span className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white">{getMethodName(method)}</span>
+                                        <button 
+                                            key={method} 
+                                            onClick={() => togglePaymentMethod(method)} 
+                                            className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-[#161616] hover:border-gray-400 dark:hover:border-gray-600 transition-all text-left group"
+                                        >
+                                            <div className="p-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300">
+                                                <Plus size={14} />
+                                            </div>
+                                            <span className="text-sm font-bold text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white">
+                                                {getMethodName(method)}
+                                            </span>
                                         </button>
                                     ))}
                                 </div>
                             </div>
                         )}
-                     </div>
+                    </div>
                 </div>
+
              </div>
           )}
 

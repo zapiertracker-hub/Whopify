@@ -65,6 +65,17 @@ export interface OrderBump {
   durationMonths?: number;
 }
 
+export interface Coupon {
+  id: string;
+  code: string;
+  type: 'percentage' | 'fixed';
+  value: number;
+  status: 'active' | 'expired' | 'disabled';
+  usageLimit?: number; // Infinite if undefined
+  usedCount: number;
+  expiryDate?: string; // ISO Date string
+}
+
 export interface CheckoutPage {
   id: string;
   name: string; // Internal name

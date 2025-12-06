@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Language, CheckoutPage, StoreSettings, Theme } from './types';
+import { Language, CheckoutPage, StoreSettings, Theme, Coupon } from './types';
 
 export interface UserProfile {
   name: string;
@@ -28,6 +28,12 @@ export interface AppContextType {
   // Settings Data
   settings: StoreSettings;
   saveSettings: (settings: StoreSettings) => void;
+
+  // Coupons Data
+  coupons: Coupon[];
+  addCoupon: (coupon: Coupon) => void;
+  updateCoupon: (id: string, updates: Partial<Coupon>) => void;
+  deleteCoupon: (id: string) => void;
 
   // User Data
   user: UserProfile;
@@ -66,6 +72,10 @@ export const AppContext = React.createContext<AppContextType>({
     taxName: 'Tax'
   },
   saveSettings: () => {},
+  coupons: [],
+  addCoupon: () => {},
+  updateCoupon: () => {},
+  deleteCoupon: () => {},
   user: { name: 'Youssef B.', email: 'admin@whopify.io', avatar: '' },
   updateUser: () => {}
 });

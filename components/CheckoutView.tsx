@@ -1,11 +1,12 @@
+
 import React, { useContext, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CheckoutPage, StoreSettings, PaymentMethod, OrderBump } from '../types';
+import { CheckoutPage, StoreSettings, PaymentMethod, OrderBump, Coupon } from '../types';
 import { AppContext } from '../AppContext';
 import { 
   CreditCard, ChevronDown, ChevronUp, ShoppingCart, Loader2,
   AlertTriangle, Lock, AlertCircle, MessageCircle, ShoppingBag, Banknote,
-  Landmark, DollarSign, Upload, Wallet, ArrowRight, CheckCircle2
+  Landmark, DollarSign, Upload, Wallet, ArrowRight, CheckCircle2, Tag, X
 } from 'lucide-react';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { 
@@ -64,7 +65,12 @@ const translations = {
     paymentFailed: "Payment Failed",
     demoMode: "Demo Mode: Payments simulated.",
     required: "Required",
-    invalid: "Invalid"
+    invalid: "Invalid",
+    orPayWithCard: "Or pay with card",
+    expressCheckout: "Express Checkout",
+    discountApplied: "Discount Applied",
+    codeInvalid: "Invalid code",
+    codeExpired: "Code expired"
   },
   fr: {
     orderSummary: "Résumé de la commande",
@@ -106,7 +112,12 @@ const translations = {
     paymentFailed: "Échec du paiement",
     demoMode: "Mode Démo : Paiements simulés.",
     required: "Requis",
-    invalid: "Invalide"
+    invalid: "Invalide",
+    orPayWithCard: "Ou payer par carte",
+    expressCheckout: "Paiement Rapide",
+    discountApplied: "Réduction appliquée",
+    codeInvalid: "Code invalide",
+    codeExpired: "Code expiré"
   }
 };
 
@@ -146,8 +157,8 @@ const CustomerFields = ({ values, onChange, errors, onBlur, t, collectPhone = tr
         <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.fullName}</label>
         <input type="text" value={values.fullName} onChange={(e) => onChange('fullName', e.target.value)} onBlur={() => onBlur && onBlur('fullName')} className={`w-full bg-[var(--bg-input)] border rounded-lg px-3 py-3 text-[var(--text-primary)] text-base lg:text-sm outline-none transition-all placeholder-[var(--text-placeholder)] ${errors.fullName ? 'border-red-500/50 focus:border-red-500' : 'border-[var(--border-color)] focus:border-blue-600'}`} />
         {errors.fullName && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={10} /> {errors.fullName}</p>}
-     </div>
-     <div>
+    </div>
+    <div>
         <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.country}</label>
         <div className="relative">
             <select value={values.country} onChange={(e) => onChange('country', e.target.value)} className="w-full bg-[var(--bg-input)] border border-[var(--border-color)] rounded-lg px-3 py-3 text-[var(--text-primary)] text-base lg:text-sm outline-none focus:border-blue-600 appearance-none transition-all cursor-pointer">
@@ -157,8 +168,28 @@ const CustomerFields = ({ values, onChange, errors, onBlur, t, collectPhone = tr
             </select>
             <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] pointer-events-none" />
         </div>
-     </div>
+    </div>
   </div>
+);
+
+// --- Logos ---
+const ApplePayLogo = () => (
+  <svg width="40" height="17" viewBox="0 0 40 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M5.7 6.8C5.7 9.3 7.8 10.3 7.9 10.4C7.9 10.4 7.6 11.5 6.8 12.6C6.1 13.6 5.4 14.6 4.3 14.6C3.2 14.6 2.9 13.9 1.7 13.9C0.5 13.9 0.1 14.6 -0.9 14.6C-1.9 14.6 -2.6 13.7 -3.3 12.7C-4.7 10.7 -5.2 8.1 -4.5 6.2C-4.1 5.2 -3.1 4.1 -1.8 4.1C-0.8 4.1 0.1 4.8 0.7 4.8C1.3 4.8 2.6 4.1 3.8 4.1C4.3 4.1 5.7 4.3 6.3 5.2C6.3 5.2 5.7 5.6 5.7 6.8Z" transform="translate(6.5, -1)" />
+    <path d="M3.3 2.9C3.8 2.3 4.1 1.5 4 0.7C3.3 0.8 2.4 1.2 1.9 1.8C1.4 2.4 1.1 3.2 1.2 4C2 4 2.8 3.5 3.3 2.9Z" transform="translate(6.5, -1)" />
+    <path d="M12.9 14.4H14.8V7.5H16.8C18.3 7.5 19.3 8.3 19.3 9.7C19.3 11.2 18.2 12 16.8 12H14.8V14.4ZM14.8 10.5H16.6C17.4 10.5 17.7 10.2 17.7 9.7C17.7 9.3 17.4 8.9 16.6 8.9H14.8V10.5Z" />
+    <path d="M24.7 14.4H26.5V11.8H26.6L28.7 14.4H31L28.1 11C29.4 10.7 30 9.9 30 8.8C30 7.3 28.8 6.5 26.9 6.5H23V14.4H24.7ZM24.7 10.4V7.9H26.7C27.6 7.9 28.2 8.2 28.2 9.1C28.2 10.1 27.6 10.4 26.6 10.4H24.7Z" transform="translate(-1.5, 1)"/>
+    <path d="M35.5 14.4H37.4L39.8 8.6L42.2 14.4H44.1L47 7.5H45.1L43.2 12.6L41.3 7.5H39.4L37.5 12.6L35.6 7.5H33.7L36.6 14.4H35.5Z" transform="translate(-3, 1)"/>
+  </svg>
+);
+
+const GooglePayLogo = () => (
+  <svg width="45" height="18" viewBox="0 0 45 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M7.1029 7.62353V10.8706H10.9765V12.5118H2.98235V10.8706H6.85588V7.62353H2.98235V5.98235H10.9765V7.62353H7.1029Z" fill="currentColor"/>
+    <path fillRule="evenodd" clipRule="evenodd" d="M19.7471 6.15882C19.7471 6.15882 19.7471 6.15882 19.7471 6.15882L22.9941 12.5118H21.2647L20.5059 10.9941H17.2294L16.4706 12.5118H14.7412L17.9882 6.15882H19.7471ZM18.8647 7.69412L17.9353 9.54706H19.8176L18.8647 7.69412Z" fill="currentColor"/>
+    <path d="M25.7471 5.98235L27.9706 9.38824L30.1588 5.98235H32.1706L28.8529 10.9059V12.5118H27.0882V10.9059L23.7706 5.98235H25.7471Z" fill="currentColor"/>
+    <path d="M42.0176 10.8706H38.1441V7.62353H42.0176V5.98235H34.0235V7.62353H37.8971V10.8706H34.0235V12.5118H42.0176V10.8706Z" fill="currentColor"/>
+  </svg>
 );
 
 const InteractiveCreditCardForm = ({ cardState, setCardState, errors, setErrors, t }: any) => {
@@ -261,21 +292,17 @@ const LiveCreditCardForm = ({ appearance, errors, setErrors, t }: { appearance: 
   );
 };
 
-const InternalCheckoutForm = ({ totalDue, config, billingDetails, setBillingDetails, onValidationFailed, currency, appearance, errors, t, selectedUpsellIds }: any) => {
+// --- Stripe Express Checkout Component ---
+const StripeExpressCheckout = ({ totalDue, currency, config, appearance, t, selectedUpsellIds }: any) => {
   const stripe = useStripe();
-  const elements = useElements();
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [cardErrors, setCardErrors] = useState({ cardNumber: '', expiry: '', cvc: '' });
   const [paymentRequest, setPaymentRequest] = useState<any>(null);
   const navigate = useNavigate();
 
-  // Payment Request (Express Checkout) Logic
   useEffect(() => {
     if (!stripe) return;
 
     const pr = stripe.paymentRequest({
-      country: billingDetails.country === 'Morocco' ? 'MA' : (billingDetails.country === 'United Kingdom' ? 'GB' : (billingDetails.country === 'France' ? 'FR' : 'US')),
+      country: 'US', // Default to US or make dynamic if needed
       currency: currency.toLowerCase(),
       total: {
         label: config.name,
@@ -298,15 +325,14 @@ const InternalCheckoutForm = ({ totalDue, config, billingDetails, setBillingDeta
                  headers: { 'Content-Type': 'application/json' },
                  body: JSON.stringify({ 
                      checkoutId: config.id,
-                     customerEmail: ev.payerEmail || billingDetails.email,
-                     customerName: ev.payerName || billingDetails.fullName,
+                     customerEmail: ev.payerEmail,
+                     customerName: ev.payerName,
                      selectedUpsellIds: Array.from(selectedUpsellIds)
                  })
               });
               
               if (!res.ok) {
                   ev.complete('fail');
-                  setErrorMessage("Payment initialization failed");
                   return;
               }
 
@@ -318,7 +344,6 @@ const InternalCheckoutForm = ({ totalDue, config, billingDetails, setBillingDeta
 
               if (confirmError) {
                   ev.complete('fail');
-                  setErrorMessage(confirmError.message || "Payment failed");
               } else {
                   ev.complete('success');
                    await fetch(`${API_URL}/api/verify-payment`, {
@@ -331,15 +356,50 @@ const InternalCheckoutForm = ({ totalDue, config, billingDetails, setBillingDeta
               }
         } catch (e) {
             ev.complete('fail');
-            setErrorMessage("Network error occurred");
         }
     });
+  }, [stripe, totalDue, currency, config, selectedUpsellIds, navigate]);
 
-  }, [stripe, totalDue, currency]);
+  if (!paymentRequest) return null;
+
+  return (
+    <div className="mb-6 animate-fade-in">
+        <PaymentRequestButtonElement options={{paymentRequest, style: { paymentRequestButton: { theme: appearance === 'dark' ? 'dark' : 'light', height: '48px' }}}} />
+        <div className="relative mt-6 mb-2">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[var(--border-color)]"></div></div>
+            <div className="relative flex justify-center text-xs uppercase"><span className="bg-[var(--bg-page)] px-2 text-[var(--text-secondary)] font-medium">{t.orPayWithCard}</span></div>
+        </div>
+    </div>
+  );
+};
+
+const DemoExpressCheckout = ({ appearance, t }: any) => {
+    return (
+        <div className="mb-6 animate-fade-in">
+            <div className="grid grid-cols-1 gap-3">
+                <button className="bg-black text-white h-12 rounded-lg flex items-center justify-center hover:opacity-90 transition-opacity shadow-sm active:scale-[0.98]">
+                    <ApplePayLogo />
+                </button>
+            </div>
+            <div className="relative mt-6 mb-2">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[var(--border-color)]"></div></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-[var(--bg-page)] px-2 text-[var(--text-secondary)] font-medium">{t.orPayWithCard}</span></div>
+            </div>
+        </div>
+    );
+}
+
+const CardPaymentForm = ({ totalDue, config, billingDetails, setBillingDetails, onValidationFailed, currency, appearance, errors, t, selectedUpsellIds }: any) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [cardErrors, setCardErrors] = useState({ cardNumber: '', expiry: '', cvc: '' });
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const isValid = onValidationFailed(); // Validates customer fields in parent
+    const isValid = onValidationFailed(); 
     if (!isValid || Object.values(cardErrors).some(err => err !== '')) return;
     if (!stripe || !elements) return;
 
@@ -400,16 +460,9 @@ const InternalCheckoutForm = ({ totalDue, config, billingDetails, setBillingDeta
   return (
     <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in pt-2">
       <LiveCreditCardForm appearance={appearance} errors={cardErrors} setErrors={setCardErrors} t={t} />
+      
       {errorMessage && <div className="flex items-start gap-3 text-red-400 text-sm bg-red-900/10 p-4 rounded-xl border border-red-900/30"><AlertTriangle size={20} className="shrink-0 mt-0.5 text-red-500" /><div className="flex-1"><span className="font-semibold block mb-1 text-red-300">{t.paymentFailed}</span><span>{errorMessage}</span></div></div>}
-      {paymentRequest && (
-          <div className="mb-6">
-              <PaymentRequestButtonElement options={{paymentRequest, style: { paymentRequestButton: { theme: appearance === 'dark' ? 'dark' : 'light', height: '48px' }}}} />
-              <div className="relative mt-6 mb-6">
-                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[var(--border-color)]"></div></div>
-                  <div className="relative flex justify-center text-xs uppercase"><span className="bg-[var(--bg-card)] px-2 text-[var(--text-secondary)] font-medium">Or pay with</span></div>
-              </div>
-          </div>
-      )}
+      
       <div>
         <button type="submit" disabled={!stripe || isProcessing} className="w-full bg-[#1754d8] hover:bg-[#154dc0] text-white font-bold py-3.5 rounded-lg transition-all active:scale-95 shadow-lg text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
             {isProcessing ? (<><Loader2 size={16} className="animate-spin" /> {t.processing}</>) : (t.orderNow)}
@@ -584,21 +637,183 @@ const CryptoPaymentForm = ({ settings, config, billingDetails, setBillingDetails
     );
 }
 
-export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false, previewMode = 'desktop' }: { checkout: CheckoutPage, settings: any, isPreview?: boolean, previewMode?: 'desktop' | 'mobile' | 'tablet' }) => {
+const CheckoutContent = ({ 
+    config, settings, isDemo, t, currencySymbol, totalDue, allUpsells, selectedUpsellIds, toggleUpsell,
+    billingDetails, updateBilling, errors, handleBillingBlur, validateForm, 
+    enabledMethods, paymentMethod, setPaymentMethod, cardState, setCardState, currency, appearance 
+}: any) => {
+    return (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  
+            {/* Express Checkout Section (Top) */}
+            {settings.stripeEnabled && (
+                isDemo ? (
+                    <DemoExpressCheckout appearance={appearance} t={t} />
+                ) : (
+                    <StripeExpressCheckout 
+                        totalDue={totalDue} 
+                        currency={currency} 
+                        config={config} 
+                        appearance={appearance}
+                        t={t} 
+                        selectedUpsellIds={selectedUpsellIds}
+                    />
+                )
+            )}
+
+            {/* Customer Info Title */}
+            <h3 className="text-lg font-bold text-[var(--text-primary)] mb-3">{t.customerInfo}</h3>
+
+            {/* Global Customer Fields */}
+            <CustomerFields values={billingDetails} onChange={updateBilling} errors={errors} onBlur={handleBillingBlur} t={t} collectPhone={config.collectPhoneNumber !== false} />
+            
+            {/* Multiple Order Bumps */}
+            {allUpsells.length > 0 && (
+                <div className="mt-6 space-y-4">
+                    {allUpsells.map((upsell: any) => {
+                        const isSelected = selectedUpsellIds.has(upsell.id);
+                        return (
+                            <div 
+                                key={upsell.id}
+                                onClick={() => toggleUpsell(upsell.id)}
+                                className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex gap-4 items-start ${isSelected ? 'border-[#f97316] bg-[#f97316]/5' : 'border-dashed border-[var(--border-color)] bg-[var(--bg-card)] hover:border-gray-400'}`}
+                            >
+                                <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-[#f97316] border-[#f97316] text-white' : 'border-[var(--text-secondary)]'}`}>
+                                    {isSelected && <ArrowRight size={14} className="rotate-45" strokeWidth={3} />}
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex justify-between items-start">
+                                        <h4 className="font-bold text-[var(--text-primary)] text-sm">{upsell.title}</h4>
+                                        <span className="font-bold text-[#f97316] text-sm">
+                                            {currencySymbol}
+                                            {upsell.offerType === 'multi_month' && upsell.monthlyPrice
+                                                ? upsell.monthlyPrice.toFixed(2)
+                                                : upsell.price.toFixed(2)
+                                            }
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">{upsell.description}</p>
+                                    
+                                    {/* Show calculation breakdown if applicable */}
+                                    {upsell.offerType === 'multi_month' && upsell.monthlyPrice && (
+                                        <div className="mt-2 inline-block px-2 py-1 bg-[#f97316]/10 rounded text-[10px] font-bold text-[#f97316]">
+                                            {currencySymbol}{upsell.monthlyPrice} / month × {upsell.durationMonths} months
+                                        </div>
+                                    )}
+                                </div>
+                                {upsell.image && <div className="w-12 h-12 rounded bg-gray-100 overflow-hidden shrink-0"><img src={upsell.image} className="w-full h-full object-cover" /></div>}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Payment Title */}
+            <h3 className="text-lg font-bold text-[var(--text-primary)] mt-6 mb-4">{t.payment}</h3>
+
+            {/* Payment Methods */}
+            <div className="space-y-4">
+                {enabledMethods.length === 0 && (
+                    <div className="p-4 border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-lg text-sm text-center font-medium flex items-center justify-center gap-2">
+                        <AlertCircle size={16} /> {t.noMethods}
+                    </div>
+                )}
+
+                {enabledMethods.map((method: PaymentMethod) => {
+                    const isSelected = paymentMethod === method;
+                    const renderPaymentMethodIcon = (m: PaymentMethod) => {
+                        switch (m) {
+                            case 'stripe': return <CreditCard size={14} />;
+                            case 'bank_transfer': return <Landmark size={14} />;
+                            case 'crypto': return <DollarSign size={14} />;
+                            case 'manual': return <Banknote size={14} />;
+                            default: return <Wallet size={14} />;
+                        }
+                    };
+                    const renderPaymentMethodLabel = (m: PaymentMethod) => {
+                        switch (m) {
+                            case 'stripe': return t.payWithCard;
+                            case 'bank_transfer': return t.payWithBank;
+                            case 'crypto': return t.payWithCrypto;
+                            case 'manual': return settings.manualPaymentLabel || t.payWithManual;
+                            default: return m;
+                        }
+                    };
+
+                    return (
+                        <div 
+                            key={method} 
+                            className={`border rounded-xl overflow-hidden transition-all duration-200 ${isSelected ? 'border-blue-600 ring-1 ring-blue-600 bg-[var(--bg-card)] shadow-md' : 'border-[var(--border-color)] bg-[var(--bg-card)] hover:border-blue-300'}`}
+                        >
+                            <div 
+                                onClick={() => setPaymentMethod(method)}
+                                className="flex items-center gap-3 p-4 cursor-pointer select-none"
+                            >
+                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-blue-600' : 'border-[var(--text-secondary)]'}`}>
+                                    {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />}
+                                </div>
+                                <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
+                                    {renderPaymentMethodIcon(method)}
+                                    {renderPaymentMethodLabel(method)}
+                                </div>
+                            </div>
+
+                            {isSelected && (
+                                <div className="p-4 pt-0 border-t border-[var(--border-color)] mt-2">
+                                    {method === 'stripe' && (
+                                        isDemo ? (
+                                            <div className="space-y-6 pt-2">
+                                                {!isDemo && <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400"><AlertTriangle size={14} /><span>{t.demoMode}</span></div>}
+                                                <InteractiveCreditCardForm cardState={cardState} setCardState={setCardState} errors={errors} setErrors={() => {}} t={t} />
+                                                <button disabled={false} onClick={validateForm} className="w-full bg-[#1754d8] hover:bg-[#154dc0] text-white font-bold py-3.5 rounded-lg transition-all active:scale-95 shadow-lg text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                                    {t.orderNow}
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <CardPaymentForm totalDue={totalDue} config={config} billingDetails={billingDetails} setBillingDetails={updateBilling} onValidationFailed={validateForm} currency={currency} appearance={appearance} errors={errors} t={t} selectedUpsellIds={selectedUpsellIds} />
+                                        )
+                                    )}
+                                    {method === 'manual' && (
+                                        <ManualCheckoutForm config={config} settings={settings} billingDetails={billingDetails} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} selectedUpsellIds={selectedUpsellIds} />
+                                    )}
+                                    {method === 'bank_transfer' && (
+                                        <BankTransferForm settings={settings} config={config} billingDetails={billingDetails} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} />
+                                    )}
+                                    {method === 'crypto' && (
+                                        <CryptoPaymentForm settings={settings} config={config} billingDetails={billingDetails} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} />
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )
+                })}
+            </div>
+            <div className="mt-8 text-[10px] text-center text-[var(--text-secondary)] leading-relaxed max-w-xs mx-auto">{t.disclaimer}</div>
+            <SecurityFooter t={t} />
+        </div>
+    );
+};
+
+export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false, previewMode = 'desktop' }: { checkout: CheckoutPage, settings: any, isPreview?: boolean, previewMode?: 'desktop' | 'mobile' | 'tablet', children?: React.ReactNode }) => {
   const navigate = useNavigate();
+  const { coupons } = useContext(AppContext);
   const [showMobileSummary, setShowMobileSummary] = useState(false);
   const forceMobileLayout = isPreview && previewMode !== 'desktop';
+  const isTabletPreview = isPreview && previewMode === 'tablet';
   const [isDemo, setIsDemo] = useState(isPreview);
   const [promoCode, setPromoCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [couponError, setCouponError] = useState('');
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
+  
+  // Billing State
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [country, setCountry] = useState('France'); // Default to France as requested
+  const [country, setCountry] = useState('France'); 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  
   const [cardState, setCardState] = useState({ cardNumber: '', expiry: '', cvc: '' });
-  const [isProcessing, setIsProcessing] = useState(false);
-  const collectPhone = config.collectPhoneNumber !== false; // Default to true if undefined
   
   // Upsell State (Multiple)
   const [selectedUpsellIds, setSelectedUpsellIds] = useState<Set<string>>(new Set());
@@ -633,9 +848,6 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
             const response = await fetch('https://ipapi.co/json/');
             const data = await response.json();
             if (data && data.country_name) {
-                // Verify if the detected country is in our list
-                // If the name from API slightly differs, this might not match perfectly, 
-                // but ipapi.co names are usually standard.
                 setCountry(data.country_name);
             }
         } catch (e) {
@@ -655,6 +867,9 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
 
   const handleBillingBlur = (field: string) => {
       const newErrors = { ...errors };
+      const collectPhone = config.collectPhoneNumber !== false;
+      const t = translations[(config.language as LangCode) || 'en'];
+
       if (field === 'email') {
           if (!email) newErrors.email = t.required;
           else if (!isValidEmail(email)) newErrors.email = t.invalid;
@@ -665,6 +880,39 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
           else newErrors.phoneNumber = '';
       }
       setErrors(newErrors);
+  };
+
+  const handleApplyCoupon = () => {
+      const t = translations[(config.language as LangCode) || 'en'];
+      setCouponError('');
+      setAppliedCoupon(null);
+
+      if (!promoCode.trim()) return;
+
+      const coupon = coupons.find(c => c.code === promoCode.toUpperCase() && c.status === 'active');
+      
+      if (!coupon) {
+          setCouponError(t.codeInvalid);
+          return;
+      }
+
+      if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+          setCouponError(t.codeExpired);
+          return;
+      }
+
+      if (coupon.expiryDate && new Date(coupon.expiryDate) < new Date()) {
+          setCouponError(t.codeExpired);
+          return;
+      }
+
+      setAppliedCoupon(coupon);
+  };
+
+  const removeCoupon = () => {
+      setAppliedCoupon(null);
+      setPromoCode('');
+      setCouponError('');
   };
 
   useEffect(() => {
@@ -713,7 +961,6 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
   const productTotal = config.products.reduce((acc: any, p: any) => acc + getProductPrice(p), 0);
   
   // Calculate Upsell Total
-  // Legacy upsell support + new array support
   const allUpsells = [...(config.upsells || []), ...(config.upsell?.enabled ? [config.upsell] : [])].filter(u => u && u.enabled);
   
   const upsellTotal = allUpsells.reduce((acc, u) => {
@@ -723,7 +970,21 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
       return acc;
   }, 0);
 
-  const totalDue = productTotal + upsellTotal;
+  const subtotal = productTotal + upsellTotal;
+  
+  // Calculate Discount
+  let discountAmount = 0;
+  if (appliedCoupon) {
+      if (appliedCoupon.type === 'percentage') {
+          discountAmount = (subtotal * appliedCoupon.value) / 100;
+      } else {
+          discountAmount = appliedCoupon.value;
+      }
+  }
+  
+  // Ensure discount doesn't exceed total
+  discountAmount = Math.min(discountAmount, subtotal);
+  const totalDue = Math.max(0, subtotal - discountAmount);
 
   const toggleUpsell = (id: string) => {
       const newSet = new Set(selectedUpsellIds);
@@ -737,6 +998,8 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
+    const collectPhone = config.collectPhoneNumber !== false;
+    
     if (!fullName || fullName.length < 2) newErrors.fullName = t.required;
     if (!email || !isValidEmail(email)) newErrors.email = t.invalid;
     if (collectPhone) {
@@ -747,12 +1010,6 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-
-  const handleManualOrderPreview = () => {
-     if (!validateForm()) return;
-     setIsProcessing(true);
-     setTimeout(() => { setIsProcessing(false); navigate('/order-confirmation', { state: { customLink: config.customThankYouLink } }); }, 1500);
   };
 
   const appearance = config.appearance || 'dark';
@@ -829,50 +1086,71 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
       </div>
   );
 
-  const renderPaymentMethodIcon = (method: PaymentMethod) => {
-      switch (method) {
-          case 'stripe': return <CreditCard size={14} />;
-          case 'bank_transfer': return <Landmark size={14} />;
-          case 'crypto': return <DollarSign size={14} />;
-          case 'manual': return <Banknote size={14} />;
-          default: return <Wallet size={14} />;
+  const CheckoutFormWrapper = ({ children }: { children?: React.ReactNode }) => {
+      if (stripePromise && !isDemo) {
+          return (
+              <Elements stripe={stripePromise} options={{ 
+                  appearance: { theme: appearance === 'dark' ? 'night' : 'stripe', labels: 'floating' },
+                  currency: currency.toLowerCase(),
+                  mode: 'payment',
+                  amount: Math.round(totalDue * 100)
+              }}>
+                  {children}
+              </Elements>
+          );
       }
-  };
-
-  const renderPaymentMethodLabel = (method: PaymentMethod) => {
-        switch (method) {
-            case 'stripe': return t.payWithCard;
-            case 'bank_transfer': return t.payWithBank;
-            case 'crypto': return t.payWithCrypto;
-            case 'manual': return settings.manualPaymentLabel || t.payWithManual;
-            default: return method;
-        }
+      return <>{children}</>;
   };
 
   return (
     <div style={themeStyles} className={`font-sans text-[var(--text-primary)] bg-[var(--bg-page)] ${isPreview ? 'h-full overflow-y-auto' : 'min-h-screen'} scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700`}>
       <div className={`${forceMobileLayout ? 'flex flex-col' : 'lg:grid lg:grid-cols-2'} ${isPreview ? 'min-h-full' : 'min-h-screen'}`}>
-        <div className={`${forceMobileLayout ? 'hidden' : 'hidden lg:flex'} flex-col bg-[var(--bg-panel)] border-r border-[var(--border-color)] relative p-12 xl:p-24 ${isPreview ? 'min-h-full' : 'h-screen sticky top-0'} overflow-hidden`}>
-           <div className="w-full max-w-md mx-auto my-auto space-y-8">
+        <div className={`${forceMobileLayout ? 'hidden' : 'hidden lg:flex'} flex-col justify-center items-end bg-[var(--bg-panel)] border-r border-[var(--border-color)] relative lg:py-12 lg:pl-6 lg:pr-10 xl:pr-16 ${isPreview ? 'min-h-full' : 'h-screen sticky top-0'} overflow-hidden`}>
+           <div className="w-full max-w-md space-y-8">
               {config.logo ? <div className="mb-8"><img src={config.logo} alt="Store Logo" style={{ height: `${(config.logoScale || 100) / 100 * 40}px` }} className="object-contain" /></div> : <div className="mb-8 text-3xl font-bold text-[var(--text-primary)] tracking-tight">{config.name}</div>}
               
               <ProductList />
 
               <div className="space-y-6">
-                 <div className="space-y-2">
-                    <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide">{t.promoCode}</label>
-                    <div className="flex items-center gap-0 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-lg p-1">
-                        <input type="text" placeholder={t.enterPromo} value={promoCode} onChange={(e) => setPromoCode(e.target.value)} className="bg-transparent border-none text-sm text-[var(--text-primary)] w-full px-3 py-2 focus:ring-0 placeholder-[var(--text-placeholder)] outline-none" />
-                        <button className="text-sm font-medium text-[#1754d8] bg-[#1754d8]/10 px-4 py-2 rounded-md transition-transform active:scale-95">{t.apply}</button>
-                    </div>
-                 </div>
+                 {/* Discount applied feedback */}
+                 {appliedCoupon ? (
+                     <div className="flex justify-between items-center p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-sm">
+                         <span className="flex items-center gap-2 text-green-600 dark:text-green-400 font-bold">
+                             <Tag size={14} /> {appliedCoupon.code}
+                         </span>
+                         <div className="flex items-center gap-3">
+                             <span className="text-green-600 dark:text-green-400 font-bold">
+                                 -{currencySymbol}{discountAmount.toFixed(2)}
+                             </span>
+                             <button onClick={removeCoupon} className="text-[var(--text-secondary)] hover:text-red-500"><X size={14} /></button>
+                         </div>
+                     </div>
+                 ) : (
+                     <div className="space-y-2">
+                        <label className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide">{t.promoCode}</label>
+                        <div className="flex items-center gap-0 bg-[var(--bg-input)] border border-[var(--border-color)] rounded-lg p-1">
+                            <input type="text" placeholder={t.enterPromo} value={promoCode} onChange={(e) => setPromoCode(e.target.value)} className="bg-transparent border-none text-sm text-[var(--text-primary)] w-full px-3 py-2 focus:ring-0 placeholder-[var(--text-placeholder)] outline-none" />
+                            <button onClick={handleApplyCoupon} className="text-sm font-medium text-[#1754d8] bg-[#1754d8]/10 px-4 py-2 rounded-md transition-transform active:scale-95">{t.apply}</button>
+                        </div>
+                        {couponError && <p className="text-xs text-red-500 font-medium flex items-center gap-1 mt-1"><AlertCircle size={10} /> {couponError}</p>}
+                     </div>
+                 )}
+
                  <div className="flex justify-between items-center text-sm font-medium text-[var(--text-secondary)] border-t border-[var(--border-color)] pt-6"><span>{t.totalDue}</span><span className="text-[var(--text-primary)] font-bold text-xl">{currencySymbol}{totalDue.toFixed(2)}</span></div>
               </div>
            </div>
         </div>
-        <div className={`bg-[var(--bg-page)] flex flex-col ${isPreview ? 'min-h-full py-6' : 'min-h-screen py-8'} ${forceMobileLayout ? 'px-4' : 'p-4 lg:py-24 lg:p-24'} relative text-[var(--text-primary)]`}>
-           <div className={`w-full max-w-lg mx-auto space-y-6 ${forceMobileLayout ? '' : 'lg:my-auto lg:space-y-8'}`}>
-              <div className={`${forceMobileLayout ? 'flex' : 'lg:hidden flex'} justify-center mb-6`}>
+        <div className={`bg-[var(--bg-page)] flex flex-col 
+            ${!forceMobileLayout && 'lg:justify-center lg:items-start'} 
+            ${isPreview ? 'min-h-full py-6' : 'min-h-screen py-8'} 
+            ${forceMobileLayout 
+                ? (isTabletPreview ? 'p-12 items-center justify-center' : 'px-4') 
+                : 'p-4 md:p-12 md:items-center md:justify-center lg:py-12 lg:pl-10 lg:pr-6 xl:pl-16'
+            } 
+            relative text-[var(--text-primary)]`}
+        >
+           <div className={`w-full max-w-lg space-y-4 mx-auto lg:mx-0 ${forceMobileLayout ? '' : 'lg:space-y-4'}`}>
+              <div className={`${forceMobileLayout ? 'flex' : 'lg:hidden flex'} justify-center mb-4`}>
                  {config.logo ? <img src={config.logo} alt="Logo" style={{ height: `${(config.logoScale || 100) / 100 * 32}px` }} className="object-contain" /> : <div className="text-2xl font-bold text-[var(--text-primary)]">{config.name}</div>}
               </div>
               <div className={`${forceMobileLayout ? 'block' : 'lg:hidden'}`}>
@@ -882,137 +1160,43 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
                   {showMobileSummary && (
                       <div className="mt-2 p-4 bg-[var(--bg-card)] rounded-lg border border-[var(--border-color)] space-y-4">
                           <ProductList />
+                          {appliedCoupon && (
+                              <div className="flex justify-between items-center text-sm font-medium text-green-500">
+                                  <span>{t.discountApplied} ({appliedCoupon.code})</span>
+                                  <span>-{currencySymbol}{discountAmount.toFixed(2)}</span>
+                              </div>
+                          )}
                           <div className="flex justify-between items-center text-sm font-medium text-[var(--text-secondary)] border-t border-[var(--border-color)] pt-4"><span>{t.totalDue}</span><span className="text-[var(--text-primary)] text-lg font-bold">{currencySymbol}{totalDue.toFixed(2)}</span></div>
                       </div>
                   )}
               </div>
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  
-                  {/* Customer Info Title */}
-                  <h3 className="text-lg font-bold text-[var(--text-primary)] mb-4">{t.customerInfo}</h3>
+              
+              <CheckoutFormWrapper>
+                  <CheckoutContent 
+                      config={config} 
+                      settings={settings} 
+                      isDemo={isDemo} 
+                      t={t} 
+                      currencySymbol={currencySymbol} 
+                      totalDue={totalDue} 
+                      allUpsells={allUpsells} 
+                      selectedUpsellIds={selectedUpsellIds} 
+                      toggleUpsell={toggleUpsell}
+                      billingDetails={{ fullName, email, phoneNumber, country }} 
+                      updateBilling={updateBilling} 
+                      errors={errors} 
+                      handleBillingBlur={handleBillingBlur} 
+                      validateForm={validateForm} 
+                      enabledMethods={enabledMethods} 
+                      paymentMethod={paymentMethod} 
+                      setPaymentMethod={setPaymentMethod}
+                      cardState={cardState}
+                      setCardState={setCardState}
+                      currency={currency}
+                      appearance={appearance}
+                  />
+              </CheckoutFormWrapper>
 
-                  {/* Global Customer Fields */}
-                  <CustomerFields values={{ fullName, email, phoneNumber, country }} onChange={updateBilling} errors={errors} onBlur={handleBillingBlur} t={t} collectPhone={collectPhone} />
-                  
-                  {/* Multiple Order Bumps */}
-                  {allUpsells.length > 0 && (
-                      <div className="mt-6 space-y-4">
-                          {allUpsells.map(upsell => {
-                              const isSelected = selectedUpsellIds.has(upsell.id);
-                              return (
-                                  <div 
-                                     key={upsell.id}
-                                     onClick={() => toggleUpsell(upsell.id)}
-                                     className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex gap-4 items-start ${isSelected ? 'border-[#f97316] bg-[#f97316]/5' : 'border-dashed border-[var(--border-color)] bg-[var(--bg-card)] hover:border-gray-400'}`}
-                                  >
-                                     <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-[#f97316] border-[#f97316] text-white' : 'border-[var(--text-secondary)]'}`}>
-                                         {isSelected && <ArrowRight size={14} className="rotate-45" strokeWidth={3} />}
-                                     </div>
-                                     <div className="flex-1">
-                                         <div className="flex justify-between items-start">
-                                             <h4 className="font-bold text-[var(--text-primary)] text-sm">{upsell.title}</h4>
-                                             <span className="font-bold text-[#f97316] text-sm">
-                                                 {currencySymbol}
-                                                 {upsell.offerType === 'multi_month' && upsell.monthlyPrice
-                                                     ? upsell.monthlyPrice.toFixed(2)
-                                                     : upsell.price.toFixed(2)
-                                                 }
-                                             </span>
-                                         </div>
-                                         <p className="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed">{upsell.description}</p>
-                                         
-                                         {/* Show calculation breakdown if applicable */}
-                                         {upsell.offerType === 'multi_month' && upsell.monthlyPrice && (
-                                             <div className="mt-2 inline-block px-2 py-1 bg-[#f97316]/10 rounded text-[10px] font-bold text-[#f97316]">
-                                                 {currencySymbol}{upsell.monthlyPrice} / month × {upsell.durationMonths} months
-                                             </div>
-                                         )}
-                                     </div>
-                                     {upsell.image && <div className="w-12 h-12 rounded bg-gray-100 overflow-hidden shrink-0"><img src={upsell.image} className="w-full h-full object-cover" /></div>}
-                                  </div>
-                              );
-                          })}
-                      </div>
-                  )}
-
-                  {/* Payment Title */}
-                  <h3 className="text-lg font-bold text-[var(--text-primary)] mt-8 mb-4">{t.payment}</h3>
-
-                  {/* Payment Methods */}
-                  <div className="space-y-4">
-                      {enabledMethods.length === 0 && (
-                          <div className="p-4 border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-lg text-sm text-center font-medium flex items-center justify-center gap-2">
-                              <AlertCircle size={16} /> {t.noMethods}
-                          </div>
-                      )}
-
-                      {enabledMethods.map((method) => {
-                          const isSelected = paymentMethod === method;
-                          return (
-                              <div 
-                                  key={method} 
-                                  className={`border rounded-xl overflow-hidden transition-all duration-200 ${isSelected ? 'border-blue-600 ring-1 ring-blue-600 bg-[var(--bg-card)] shadow-md' : 'border-[var(--border-color)] bg-[var(--bg-card)] hover:border-blue-300'}`}
-                              >
-                                  <div 
-                                      onClick={() => setPaymentMethod(method)}
-                                      className="flex items-center gap-3 p-4 cursor-pointer select-none"
-                                  >
-                                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${isSelected ? 'border-blue-600' : 'border-[var(--text-secondary)]'}`}>
-                                          {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />}
-                                      </div>
-                                      <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
-                                          {renderPaymentMethodIcon(method)}
-                                          {renderPaymentMethodLabel(method)}
-                                      </div>
-                                  </div>
-
-                                  {isSelected && (
-                                      <div className="p-4 pt-0 border-t border-[var(--border-color)] mt-2">
-                                          {method === 'stripe' && (
-                                              isDemo ? (
-                                                  <div className="space-y-6 pt-2">
-                                                      {!isPreview && <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400"><AlertTriangle size={14} /><span>{t.demoMode}</span></div>}
-                                                      <InteractiveCreditCardForm cardState={cardState} setCardState={setCardState} errors={errors} setErrors={setErrors} t={t} />
-                                                      <button disabled={isProcessing} onClick={handleManualOrderPreview} className="w-full bg-[#1754d8] hover:bg-[#154dc0] text-white font-bold py-3.5 rounded-lg transition-all active:scale-95 shadow-lg text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                                                          {isProcessing ? (<><Loader2 size={16} className="animate-spin" /> {t.processing}</>) : (t.orderNow)}
-                                                      </button>
-                                                      <div className="relative mt-6 mb-6">
-                                                          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[var(--border-color)]"></div></div>
-                                                          <div className="relative flex justify-center text-xs uppercase"><span className="bg-[var(--bg-card)] px-2 text-[var(--text-secondary)] font-medium">Or pay with</span></div>
-                                                      </div>
-                                                      <button disabled className="w-full bg-black text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 opacity-80 cursor-not-allowed text-sm">
-                                                          <span className="font-bold">Pay</span> <span className="font-light">with</span> Apple Pay
-                                                      </button>
-                                                      <button disabled className="w-full bg-white text-black border border-[var(--border-color)] font-bold py-3 rounded-lg flex items-center justify-center gap-2 mt-2 opacity-80 cursor-not-allowed text-sm">
-                                                          <span className="font-bold text-blue-500">G</span> <span className="font-bold text-red-500">P</span> <span className="font-bold text-yellow-500">a</span> <span className="font-bold text-green-500">y</span>
-                                                      </button>
-                                                  </div>
-                                              ) : (
-                                                  stripePromise && (
-                                                      <Elements stripe={stripePromise}>
-                                                          <InternalCheckoutForm totalDue={totalDue} config={config} billingDetails={{ fullName, email, phoneNumber, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} currency={currency} appearance={appearance} errors={errors} t={t} selectedUpsellIds={selectedUpsellIds} />
-                                                      </Elements>
-                                                  )
-                                              )
-                                          )}
-                                          {method === 'manual' && (
-                                              <ManualCheckoutForm config={config} settings={settings} billingDetails={{ fullName, email, phoneNumber, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} selectedUpsellIds={selectedUpsellIds} />
-                                          )}
-                                          {method === 'bank_transfer' && (
-                                              <BankTransferForm settings={settings} config={config} billingDetails={{ fullName, email, phoneNumber, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} />
-                                          )}
-                                          {method === 'crypto' && (
-                                              <CryptoPaymentForm settings={settings} config={config} billingDetails={{ fullName, email, phoneNumber, country }} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} />
-                                          )}
-                                      </div>
-                                  )}
-                              </div>
-                          )
-                      })}
-                  </div>
-              </div>
-              <div className="mt-8 text-[10px] text-center text-[var(--text-secondary)] leading-relaxed max-w-xs mx-auto">{t.disclaimer}</div>
-              <SecurityFooter t={t} />
            </div>
         </div>
       </div>
