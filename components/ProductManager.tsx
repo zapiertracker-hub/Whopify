@@ -2,9 +2,8 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import { AppContext } from '../AppContext';
 import { 
-  Plus, Search, Edit2, Copy, ExternalLink, 
-  TrendingUp, X, Trash2, Edit, Check, Layout, AlertTriangle, MoreVertical,
-  MousePointer2
+  Plus, Search, Edit2, ExternalLink, 
+  TrendingUp, X, Trash2, Edit, Check, Layout, AlertTriangle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { CheckoutPage } from '../types';
@@ -24,9 +23,6 @@ const ProductManager = () => {
   // Modals State
   const [renameState, setRenameState] = useState<{ isOpen: boolean; id: string; name: string }>({ isOpen: false, id: '', name: '' });
   const [deleteState, setDeleteState] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null });
-
-  // Copy Feedback
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -69,19 +65,6 @@ const ProductManager = () => {
     if (!renameState.name) return;
     updateCheckout(renameState.id, { name: renameState.name });
     setRenameState({ ...renameState, isOpen: false });
-  };
-
-  const handleCopyLink = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    const baseUrl = window.location.href.split('#')[0];
-    const url = `${baseUrl}#/p/${id}`; 
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch (err) {
-      console.error('Failed to copy URL:', err);
-    }
   };
 
   const handlePreview = (e: React.MouseEvent, id: string) => {
@@ -245,14 +228,6 @@ const ProductManager = () => {
                   </button>
                   
                   <div className="flex gap-1.5">
-                      <button 
-                        onClick={(e) => handleCopyLink(e, page.id)}
-                        title={copiedId === page.id ? "Copied!" : "Copy Link"}
-                        className="w-9 h-9 flex items-center justify-center bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-all active:scale-95 shadow-sm"
-                      >
-                        {copiedId === page.id ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                      </button>
-
                       <button 
                         onClick={(e) => handlePreview(e, page.id)}
                         title="View Live Page"

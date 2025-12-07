@@ -29,7 +29,8 @@ import {
   ArrowRight,
   Check,
   Grid,
-  Tags
+  Tags,
+  Puzzle
 } from 'lucide-react';
 import DashboardHome from './components/DashboardHome';
 import AnalyticsPage from './components/AnalyticsPage';
@@ -46,6 +47,8 @@ import GhostLinkPage from './components/GhostLinkPage';
 import GhostAnalyticsPage from './components/GhostAnalyticsPage'; 
 import AppsPage from './components/AppsPage';
 import DiscountsPage from './components/DiscountsPage';
+import HomePage from './components/HomePage';
+import LoginPage from './components/LoginPage';
 import { AppContext, UserProfile } from './AppContext'; 
 
 import { Language, CheckoutPage, StoreSettings, Theme, Coupon } from './types';
@@ -83,6 +86,12 @@ const defaultSettings: StoreSettings = {
   cryptoWalletAddress: '',
   cryptoOptions: ['BTC', 'ETH', 'USDT'],
 
+  // Customer Portal Defaults
+  portalAllowCancellation: true,
+  portalAllowPlanChange: false,
+  portalAllowPaymentUpdate: true,
+  portalShowHistory: true,
+
   taxEnabled: false,
   taxRate: 0,
   taxName: 'Tax',
@@ -104,6 +113,7 @@ const defaultCoupons: Coupon[] = [
 
 interface LayoutProps {
   children?: ReactNode;
+  onLogout?: () => void;
 }
 
 interface NavItem {
@@ -119,7 +129,7 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const Layout = ({ children }: LayoutProps) => {
+const Layout = ({ children, onLogout }: LayoutProps) => {
   const { isRTL, theme, setTheme, checkouts, user } = React.useContext(AppContext);
   const location = useLocation();
   const navigate = useNavigate();
@@ -206,7 +216,7 @@ const Layout = ({ children }: LayoutProps) => {
     {
       title: null,
       items: [
-        { path: '/', label: 'Home', icon: LayoutDashboard },
+        { path: '/dashboard', label: 'Home', icon: LayoutDashboard },
         { path: '/analytics', label: 'Analytics', icon: BarChart2 },
       ]
     },
@@ -231,7 +241,7 @@ const Layout = ({ children }: LayoutProps) => {
       title: 'Support',
       items: [
         { path: '/help', label: 'Help Center', icon: HelpCircle },
-        { path: '/apps', label: 'App Store', icon: Grid },
+        { path: '/apps', label: 'App Store', icon: Puzzle },
       ]
     }
   ];
@@ -277,7 +287,7 @@ const Layout = ({ children }: LayoutProps) => {
 
               <div className="space-y-0.5">
                 {group.items.map((item) => {
-                  const isActive = location.pathname.startsWith(item.path) && item.path !== '/';
+                  const isActive = location.pathname.startsWith(item.path);
                   const Icon = item.icon;
                   const isDisabled = item.disabled;
                   const badge = item.badge;
@@ -375,7 +385,10 @@ const Layout = ({ children }: LayoutProps) => {
           </Link>
 
           {/* Log Out */}
-          <div className="flex items-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95 cursor-pointer px-3 py-2 justify-start lg:justify-center lg:group-hover:justify-start">
+          <div 
+            onClick={onLogout}
+            className="flex items-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95 cursor-pointer px-3 py-2 justify-start lg:justify-center lg:group-hover:justify-start"
+          >
             <LogOut size={20} className="shrink-0 text-gray-500 dark:text-gray-400" />
             <span className={`
               ml-3 lg:ml-0 lg:w-0 lg:opacity-0 
@@ -403,7 +416,7 @@ const Layout = ({ children }: LayoutProps) => {
               <span className="text-gray-500 dark:text-gray-500 font-medium">Store</span>
               <span className="mx-2 text-gray-300 dark:text-gray-700">/</span>
               <span className="text-gray-900 dark:text-white font-semibold">
-                 {navGroups.flatMap(g => g.items).find(i => i.path === location.pathname)?.label || (location.pathname === '/settings' ? 'Settings' : location.pathname === '/help' ? 'Help Center' : location.pathname === '/apps' ? 'App Store' : 'Dashboard')}
+                 {navGroups.flatMap(g => g.items).find(i => location.pathname.startsWith(i.path) && i.path !== '/') ?.label || (location.pathname === '/settings' ? 'Settings' : location.pathname === '/help' ? 'Help Center' : location.pathname === '/apps' ? 'App Store' : 'Dashboard')}
               </span>
             </h2>
           </div>
@@ -576,7 +589,7 @@ const Layout = ({ children }: LayoutProps) => {
                           </button>
                           <div className="h-px bg-gray-100 dark:bg-gray-800 my-1 mx-2"></div>
                           <button 
-                            onClick={() => { setIsProfileOpen(false); alert("Logged out (Demo)"); }}
+                            onClick={onLogout}
                             className="w-full text-left px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg flex items-center gap-3 transition-all active:scale-95"
                           >
                               <LogOut size={18} /> Sign out
@@ -612,6 +625,12 @@ export default function App() {
   // Offline/Beta Mode State
   const [isBetaMode, setIsBetaMode] = useState(false);
 
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+      // Persist login state
+      return localStorage.getItem('whopify_auth') === 'true';
+  });
+
   const toggleGhostMode = () => setGhostMode(!ghostMode);
 
   // Global State
@@ -625,6 +644,16 @@ export default function App() {
     email: 'admin@whopify.io',
     avatar: ''
   });
+
+  const handleLogin = () => {
+      setIsAuthenticated(true);
+      localStorage.setItem('whopify_auth', 'true');
+  };
+
+  const handleLogout = () => {
+      setIsAuthenticated(false);
+      localStorage.removeItem('whopify_auth');
+  };
 
   // Load user from local storage
   useEffect(() => {
@@ -646,6 +675,8 @@ export default function App() {
 
   // Hydrate from Backend on Mount with Fallback
   useEffect(() => {
+    if (!isAuthenticated) return; // Only fetch if logged in
+
     const fetchData = async () => {
         try {
             // Promise.all for parallel fetching
@@ -678,7 +709,7 @@ export default function App() {
         }
     };
     fetchData();
-  }, []);
+  }, [isAuthenticated]);
 
   // Persist Coupons locally
   useEffect(() => {
@@ -862,37 +893,49 @@ export default function App() {
     }}>
       <HashRouter>
         <PageTracker /> 
-        {/* Beta Mode Indicator */}
-        {isBetaMode && (
-            <div className="fixed bottom-4 right-4 z-[100] bg-blue-500/10 backdrop-blur-md border border-blue-500/20 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm">
-                <FlaskConical size={14} /> Beta Mode
-            </div>
-        )}
-
+        
         <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <HomePage />} />
+          <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage onLogin={handleLogin} />} />
+          
+          {/* Standalone Checkout Views (Public) */}
           <Route path="/p/:checkoutId" element={<CheckoutView />} />
           <Route path="/order-confirmation" element={<OrderConfirmation />} />
 
+          {/* Protected Dashboard Routes */}
           <Route path="/*" element={
-            <Layout>
-              <Routes>
-                <Route path="/" element={<DashboardHome />} />
-                <Route path="/analytics" element={<AnalyticsPage />} />
-                <Route path="/checkouts" element={<ProductManager />} />
-                <Route path="/checkouts/:checkoutId" element={<StoreBuilder />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                
-                <Route path="/orders" element={<OrdersPage />} />
-                <Route path="/customers" element={<CustomersPage />} />
-                <Route path="/coupons" element={<DiscountsPage />} />
-                <Route path="/apps" element={<AppsPage />} />
-                <Route path="/tools/ghost-link" element={<GhostLinkPage />} />
-                <Route path="/tools/ghost-analytics" element={<GhostAnalyticsPage />} />
-                <Route path="/help" element={<HelpCenterPage />} />
+            isAuthenticated ? (
+              <Layout onLogout={handleLogout}>
+                <Routes>
+                  <Route path="/dashboard" element={<DashboardHome />} />
+                  <Route path="/analytics" element={<AnalyticsPage />} />
+                  <Route path="/checkouts" element={<ProductManager />} />
+                  <Route path="/checkouts/:checkoutId" element={<StoreBuilder />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  
+                  <Route path="/orders" element={<OrdersPage />} />
+                  <Route path="/customers" element={<CustomersPage />} />
+                  <Route path="/coupons" element={<DiscountsPage />} />
+                  <Route path="/apps" element={<AppsPage />} />
+                  <Route path="/tools/ghost-link" element={<GhostLinkPage />} />
+                  <Route path="/tools/ghost-analytics" element={<GhostAnalyticsPage />} />
+                  <Route path="/help" element={<HelpCenterPage />} />
 
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Layout>
+                  {/* Fallback for logged in users */}
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+                
+                {/* Beta Mode Indicator */}
+                {isBetaMode && (
+                    <div className="fixed bottom-4 right-4 z-[100] bg-blue-500/10 backdrop-blur-md border border-blue-500/20 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 shadow-sm">
+                        <FlaskConical size={14} /> Beta Mode
+                    </div>
+                )}
+              </Layout>
+            ) : (
+              <Navigate to="/" replace />
+            )
           } />
         </Routes>
       </HashRouter>

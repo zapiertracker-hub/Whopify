@@ -126,7 +126,13 @@ const StoreBuilder = () => {
   const updateUpsellPricing = (field: string, value: any) => {
       if (!editingUpsell) return;
       
-      let updates: any = { [field]: value };
+      // Ensure numeric values are stored as numbers
+      let storageValue = value;
+      if (['price', 'monthlyPrice', 'durationMonths'].includes(field)) {
+          storageValue = field === 'durationMonths' ? parseInt(value) || 0 : parseFloat(value) || 0;
+      }
+
+      let updates: any = { [field]: storageValue };
 
       if (field === 'offerType' && value === 'multi_month') {
           // Initialize defaults when switching to multi-month
@@ -137,8 +143,8 @@ const StoreBuilder = () => {
           updates.price = parseFloat((monthly * months).toFixed(2));
       } else if (editingUpsell.offerType === 'multi_month' || (field === 'offerType' && value === 'multi_month')) {
           // Calculate sum if in multi-month mode
-          const monthly = field === 'monthlyPrice' ? parseFloat(value) : (editingUpsell.monthlyPrice || 0);
-          const months = field === 'durationMonths' ? parseInt(value) : (editingUpsell.durationMonths || 12);
+          const monthly = field === 'monthlyPrice' ? (parseFloat(value) || 0) : (editingUpsell.monthlyPrice || 0);
+          const months = field === 'durationMonths' ? (parseInt(value) || 0) : (editingUpsell.durationMonths || 12);
           updates.price = parseFloat((monthly * months).toFixed(2));
       }
 
@@ -1074,7 +1080,7 @@ const StoreBuilder = () => {
                                       <input 
                                           type="number" 
                                           value={editingUpsell.price} 
-                                          onChange={(e) => setEditingUpsell({ ...editingUpsell, price: parseFloat(e.target.value) })}
+                                          onChange={(e) => updateUpsellPricing('price', e.target.value)}
                                           className="w-full pl-8 pr-4 py-2 bg-gray-50 dark:bg-black border border-gray-300 dark:border-gray-700 rounded-lg outline-none focus:border-[#f97316]"
                                       />
                                   </div>

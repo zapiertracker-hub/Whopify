@@ -687,8 +687,8 @@ const CheckoutContent = ({
                                         <span className="font-bold text-[#f97316] text-sm">
                                             {currencySymbol}
                                             {upsell.offerType === 'multi_month' && upsell.monthlyPrice
-                                                ? upsell.monthlyPrice.toFixed(2)
-                                                : upsell.price.toFixed(2)
+                                                ? Number(upsell.monthlyPrice).toFixed(2)
+                                                : Number(upsell.price).toFixed(2)
                                             }
                                         </span>
                                     </div>
@@ -1074,8 +1074,8 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
                            <div className="font-bold text-[var(--text-primary)] text-sm">
                                {currencySymbol}
                                {(upsell.offerType === 'multi_month' && upsell.monthlyPrice 
-                                   ? upsell.monthlyPrice 
-                                   : upsell.price
+                                   ? Number(upsell.monthlyPrice) 
+                                   : Number(upsell.price)
                                ).toFixed(2)}
                            </div>
                       </div>

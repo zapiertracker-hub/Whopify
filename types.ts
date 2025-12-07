@@ -141,6 +141,12 @@ export interface StoreSettings {
   cryptoWalletAddress?: string;
   cryptoOptions?: string[]; // e.g. ['BTC', 'ETH']
 
+  // Customer Portal Settings
+  portalAllowCancellation?: boolean;
+  portalAllowPlanChange?: boolean;
+  portalAllowPaymentUpdate?: boolean;
+  portalShowHistory?: boolean;
+
   // Tax Settings
   taxEnabled: boolean;
   taxRate: number; // Percentage
