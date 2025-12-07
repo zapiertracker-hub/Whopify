@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { 
   Ghost, Link as LinkIcon, Copy, ArrowRight, Check, 
@@ -19,10 +18,7 @@ const GhostLinkPage = () => {
   // Result State
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
-  const [history, setHistory] = useState<any[]>([
-    { id: 1, original: 'https://myshop.com/product-1', ghost: 'https://g.milek.store/x9sA2', type: '307', clicks: 124, date: '2 hours ago' },
-    { id: 2, original: 'https://myshop.com/promo', ghost: 'https://g.milek.store/promo24', type: '301', clicks: 856, date: '1 day ago' },
-  ]);
+  const [history, setHistory] = useState<any[]>([]);
 
   const handleGenerate = () => {
     if (!targetUrl) return;
@@ -220,6 +216,7 @@ const GhostLinkPage = () => {
                     <Shuffle size={18} /> Recent Ghosts
                 </h3>
                 <div className="space-y-4">
+                    {history.length === 0 && <div className="text-gray-500 text-sm text-center py-4">No recent links generated.</div>}
                     {history.map((item) => (
                         <div key={item.id} className="p-3 rounded-xl bg-gray-50 dark:bg-[#161616] border border-gray-100 dark:border-gray-800 group hover:border-[#f97316]/30 transition-colors">
                             <div className="flex justify-between items-start mb-1">

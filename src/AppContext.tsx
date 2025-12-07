@@ -1,11 +1,15 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
-import { StoreSettings, CheckoutPage, Coupon, User } from './types';
+import { StoreSettings, CheckoutPage, Coupon } from './types';
 
 // Extended User type for local state management including auth
-export interface UserProfile extends User {
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: 'seller' | 'admin';
+  avatar: string;
   username?: string;
   password?: string;
-  email: string;
 }
 
 interface AppContextType {

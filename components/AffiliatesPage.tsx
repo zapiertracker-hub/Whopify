@@ -1,12 +1,9 @@
+
 import React from 'react';
 import { Users, DollarSign, Link as LinkIcon, Copy, Settings } from 'lucide-react';
 
 const AffiliatesPage = () => {
-  const affiliates = [
-    { id: 1, name: 'Michael Scott', referrals: 45, earned: '$1,250.00', status: 'active', link: 'milek.io/ref/mscott' },
-    { id: 2, name: 'Dwight Schrute', referrals: 128, earned: '$3,840.00', status: 'active', link: 'milek.io/ref/beets' },
-    { id: 3, name: 'Jim Halpert', referrals: 12, earned: '$320.00', status: 'pending', link: 'milek.io/ref/bigtuna' },
-  ];
+  const affiliates: any[] = [];
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
@@ -31,13 +28,13 @@ const AffiliatesPage = () => {
                 <Users size={120} />
              </div>
              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Total Affiliates</h3>
-             <p className="text-4xl font-bold text-gray-900 dark:text-white mb-2">154</p>
-             <p className="text-orange-600 dark:text-brand-400 text-sm font-medium">+12 this month</p>
+             <p className="text-4xl font-bold text-gray-900 dark:text-white mb-2">0</p>
+             <p className="text-orange-600 dark:text-brand-400 text-sm font-medium">+0 this month</p>
          </div>
          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 shadow-sm">
              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Total Commissions Paid</h3>
-             <p className="text-4xl font-bold text-gray-900 dark:text-white mb-2">$12,450.00</p>
-             <p className="text-gray-500 dark:text-gray-400 text-sm">Last payout: Oct 01, 2023</p>
+             <p className="text-4xl font-bold text-gray-900 dark:text-white mb-2">$0.00</p>
+             <p className="text-gray-500 dark:text-gray-400 text-sm">No payouts yet</p>
          </div>
       </div>
 
@@ -57,6 +54,9 @@ const AffiliatesPage = () => {
                   </tr>
                </thead>
                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {affiliates.length === 0 && (
+                      <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-500">No affiliates found.</td></tr>
+                  )}
                   {affiliates.map(a => (
                      <tr key={a.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                         <td className="px-6 py-4">

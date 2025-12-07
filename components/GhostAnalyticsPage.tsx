@@ -45,34 +45,29 @@ const GhostAnalyticsPage = () => {
 
   // Mock Data
   const clickData = [
-    { name: 'Mon', clicks: 240 },
-    { name: 'Tue', clicks: 450 },
-    { name: 'Wed', clicks: 380 },
-    { name: 'Thu', clicks: 620 },
-    { name: 'Fri', clicks: 890 },
-    { name: 'Sat', clicks: 750 },
-    { name: 'Sun', clicks: 920 },
+    { name: 'Mon', clicks: 0 },
+    { name: 'Tue', clicks: 0 },
+    { name: 'Wed', clicks: 0 },
+    { name: 'Thu', clicks: 0 },
+    { name: 'Fri', clicks: 0 },
+    { name: 'Sat', clicks: 0 },
+    { name: 'Sun', clicks: 0 },
   ];
 
   const deviceData = [
-    { name: 'Mobile', value: 65, color: '#f97316' },
-    { name: 'Desktop', value: 25, color: '#3b82f6' },
-    { name: 'Tablet', value: 10, color: '#10b981' },
+    { name: 'Mobile', value: 0, color: '#f97316' },
+    { name: 'Desktop', value: 0, color: '#3b82f6' },
+    { name: 'Tablet', value: 0, color: '#10b981' },
   ];
 
-  const topGhosts = [
-    { id: 1, alias: '/summer-sale', target: 'myshop.com/promo', clicks: '12.5k', ctr: '4.2%', created: '2 days ago' },
-    { id: 2, alias: '/tiktok-viral', target: 'myshop.com/p/leggings', clicks: '8.2k', ctr: '3.8%', created: '5 days ago' },
-    { id: 3, alias: '/fb-ad-v2', target: 'myshop.com/landing-b', clicks: '3.1k', ctr: '2.1%', created: '1 week ago' },
-    { id: 4, alias: '/email-welcome', target: 'myshop.com/discount', clicks: '1.2k', ctr: '12.5%', created: '2 weeks ago' },
-  ];
+  const topGhosts: any[] = [];
 
   const locationData = [
-    { name: 'USA', value: 45 },
-    { name: 'UK', value: 20 },
-    { name: 'Canada', value: 15 },
-    { name: 'Morocco', value: 12 },
-    { name: 'France', value: 8 },
+    { name: 'USA', value: 0 },
+    { name: 'UK', value: 0 },
+    { name: 'Canada', value: 0 },
+    { name: 'Morocco', value: 0 },
+    { name: 'France', value: 0 },
   ];
 
   const handleCopy = (id: number, text: string) => {
@@ -112,16 +107,16 @@ const GhostAnalyticsPage = () => {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-            <MetricItem label="Total Clicks" value="24,892" trend={15.4} icon={MousePointer2} />
+            <MetricItem label="Total Clicks" value="0" icon={MousePointer2} />
         </Card>
         <Card>
-            <MetricItem label="Active Ghosts" value="42" trend={5.2} icon={Activity} />
+            <MetricItem label="Active Ghosts" value="0" icon={Activity} />
         </Card>
         <Card>
-            <MetricItem label="Avg. CTR" value="4.8%" trend={-1.2} icon={ExternalLink} />
+            <MetricItem label="Avg. CTR" value="0%" icon={ExternalLink} />
         </Card>
         <Card>
-            <MetricItem label="Top Source" value="TikTok" trend={22.8} icon={Globe} />
+            <MetricItem label="Top Source" value="-" icon={Globe} />
         </Card>
       </div>
 
@@ -243,6 +238,9 @@ const GhostAnalyticsPage = () => {
                          </tr>
                      </thead>
                      <tbody className="divide-y divide-gray-50 dark:divide-white/5">
+                         {topGhosts.length === 0 && (
+                             <tr><td colSpan={4} className="px-5 py-8 text-center text-gray-500 text-sm">No active links found.</td></tr>
+                         )}
                          {topGhosts.map((ghost) => (
                              <tr key={ghost.id} className="group hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
                                  <td className="px-5 py-3">

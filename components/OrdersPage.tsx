@@ -1,3 +1,4 @@
+
 import React, { useState, useContext, useEffect } from 'react';
 import { Search, Download, CheckCircle, Clock, XCircle, RefreshCw } from 'lucide-react';
 import { AppContext } from '../AppContext';
@@ -21,19 +22,6 @@ const OrdersPage = () => {
     }
   }, [searchParams]);
 
-  // Mock Data Generator
-  const generateMockOrders = () => {
-    return Array.from({ length: 12 }, (_, i) => ({
-        id: `ord_${Math.random().toString(36).substr(2, 8)}`,
-        amount: (Math.random() * 200 + 10).toFixed(2),
-        currency: 'USD',
-        status: i % 5 === 0 ? 'failed' : (i % 3 === 0 ? 'pending' : 'succeeded'),
-        date: new Date(Date.now() - i * 86400000).toISOString().split('T')[0],
-        customer: { name: `Customer ${i + 1}` },
-        email: `customer${i}@example.com`
-    }));
-  };
-
   const fetchOrders = async () => {
     setLoading(true);
     try {
@@ -45,8 +33,8 @@ const OrdersPage = () => {
             throw new Error("Failed to fetch");
         }
     } catch (e) {
-        // Fallback to local mocks if backend unavailable
-        setOrders(generateMockOrders());
+        // Fallback to empty state
+        setOrders([]);
     } finally {
         setLoading(false);
     }

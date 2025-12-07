@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Search, Mail, MapPin, UserPlus, MoreVertical, RefreshCw } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
@@ -17,15 +18,6 @@ const CustomersPage = () => {
     }
   }, [searchParams]);
 
-  const generateMockCustomers = () => {
-      return [
-          { id: '1', name: 'Alex Johnson', email: 'alex@example.com', location: 'New York, US', orders: 5, spent: '$245.00', lastActive: '2 days ago' },
-          { id: 2, name: 'Sarah Connor', email: 'sarah@example.com', location: 'London, UK', orders: 2, spent: '$89.00', lastActive: '1 week ago' },
-          { id: 3, name: 'Mike Ross', email: 'mike@example.com', location: 'Toronto, CA', orders: 12, spent: '$1,205.00', lastActive: 'Yesterday' },
-          { id: 4, name: 'Jessica Pearson', email: 'jessica@example.com', location: 'Chicago, US', orders: 8, spent: '$850.50', lastActive: '3 days ago' }
-      ];
-  };
-
   const fetchCustomers = async () => {
     setLoading(true);
     try {
@@ -37,7 +29,7 @@ const CustomersPage = () => {
             throw new Error("Failed to fetch");
         }
     } catch (e) {
-        setCustomers(generateMockCustomers());
+        setCustomers([]);
     } finally {
         setLoading(false);
     }

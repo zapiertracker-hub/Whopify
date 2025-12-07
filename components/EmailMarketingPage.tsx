@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Mail, Send, Users, BarChart2, Plus, ArrowUpRight } from 'lucide-react';
 
@@ -6,20 +7,17 @@ const StatCard = ({ label, value, trend }: any) => (
     <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{label}</p>
     <div className="flex items-end justify-between">
        <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{value}</h3>
-       <span className="text-xs text-green-600 dark:text-green-400 flex items-center bg-green-100 dark:bg-green-900/20 px-1.5 py-0.5 rounded">
-          <ArrowUpRight size={12} className="mr-1" /> {trend}
-       </span>
+       {trend && (
+           <span className="text-xs text-green-600 dark:text-green-400 flex items-center bg-green-100 dark:bg-green-900/20 px-1.5 py-0.5 rounded">
+              <ArrowUpRight size={12} className="mr-1" /> {trend}
+           </span>
+       )}
     </div>
   </div>
 );
 
 const EmailMarketingPage = () => {
-  const campaigns = [
-    { id: 1, name: 'October Newsletter', status: 'Sent', sent: '2,450', openRate: '45.2%', clickRate: '12.8%', date: 'Oct 24, 2023' },
-    { id: 2, name: 'Black Friday Teaser', status: 'Scheduled', sent: '-', openRate: '-', clickRate: '-', date: 'Nov 01, 2023' },
-    { id: 3, name: 'Welcome Sequence', status: 'Active (Auto)', sent: '854', openRate: '68.5%', clickRate: '24.1%', date: 'Ongoing' },
-    { id: 4, name: 'Cart Abandonment', status: 'Active (Auto)', sent: '120', openRate: '52.0%', clickRate: '18.5%', date: 'Ongoing' },
-  ];
+  const campaigns: any[] = []; // Empty
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
@@ -34,9 +32,9 @@ const EmailMarketingPage = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-         <StatCard label="Total Subscribers" value="4,250" trend="+12%" />
-         <StatCard label="Avg. Open Rate" value="42.8%" trend="+5%" />
-         <StatCard label="Avg. Click Rate" value="15.2%" trend="+2.4%" />
+         <StatCard label="Total Subscribers" value="0" />
+         <StatCard label="Avg. Open Rate" value="0%" />
+         <StatCard label="Avg. Click Rate" value="0%" />
       </div>
 
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-sm dark:shadow-lg">
@@ -57,6 +55,9 @@ const EmailMarketingPage = () => {
                   </tr>
                </thead>
                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {campaigns.length === 0 && (
+                      <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-500">No campaigns found.</td></tr>
+                  )}
                   {campaigns.map(c => (
                      <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                         <td className="px-6 py-4">

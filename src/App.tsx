@@ -41,8 +41,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useContext(AppContext);
-  // Simple session check (in real app, use token)
-  const [isAuthenticated, setIsAuthenticated] = useState(true); 
+  const [isAuthenticated, setIsAuthenticated] = useState(true); // Default true for demo
 
   const handleLogout = () => {
     setIsAuthenticated(false);

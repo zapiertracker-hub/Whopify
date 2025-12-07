@@ -1,13 +1,14 @@
+
 import React, { useContext, useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Plus, Copy, ExternalLink, ArrowRight, Play, Mail, ShoppingBag, X, Search } from 'lucide-react';
+import { Plus, Play, Mail, ArrowRight } from 'lucide-react';
 import { AppContext } from '../AppContext';
 import { useNavigate } from 'react-router-dom';
 
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 
 const DashboardHome = () => {
-  const { settings, theme, ghostMode } = useContext(AppContext);
+  const { settings, theme, ghostMode, checkouts } = useContext(AppContext);
   const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('30d');
   
@@ -26,79 +27,119 @@ const DashboardHome = () => {
   const fetchStats = async () => {
       setIsLoading(true);
 
-      // 1. Try Fetching from Backend
+      // 1. Try Fetching from Backend (Orders API for real calculation)
       if (backendAvailable) {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
 
           try {
-              const res = await fetch(`${API_URL}/api/analytics?range=${timeRange}`, {
+              const res = await fetch(`${API_URL}/api/orders`, {
                 signal: controller.signal
               });
               
               if (!res.ok) throw new Error("Backend unreachable");
-              const data = await res.json();
+              const orders = await res.json();
               
-              if (data && data.kpi) {
-                  setStats({
-                      revenue: data.kpi.revenue,
-                      orders: data.kpi.orders,
-                      visits: data.kpi.customers * 3, // Simulating visit ratio
-                      customers: data.kpi.customers,
-                      chartData: data.charts.daily
-                  });
-                  setIsLoading(false);
-                  return; // Exit successfully
+              // Filter by Time Range
+              const now = new Date();
+              const cutoff = new Date();
+              if (timeRange === '24h') cutoff.setHours(now.getHours() - 24);
+              if (timeRange === '7d') cutoff.setDate(now.getDate() - 7);
+              if (timeRange === '30d') cutoff.setDate(now.getDate() - 30);
+
+              const filteredOrders = Array.isArray(orders) ? orders.filter((o: any) => {
+                  const d = o.timestamp ? new Date(o.timestamp) : new Date(o.date);
+                  return d >= cutoff;
+              }) : [];
+
+              // Calculate KPI
+              const totalRevenue = filteredOrders.reduce((acc: number, o: any) => acc + parseFloat(o.amount || 0), 0);
+              const totalOrdersCount = filteredOrders.length;
+              const uniqueCustomers = new Set(filteredOrders.map((o: any) => o.customerEmail)).size;
+              // Use checkouts context sum for visits as it's the source of truth for page views if tracked
+              const totalVisits = checkouts.reduce((acc, c) => acc + (c.visits || 0), 0);
+
+              // Chart Data
+              const chartMap = new Map();
+              const isHourly = timeRange === '24h';
+              const labels: string[] = [];
+              
+              if (isHourly) {
+                 for(let i=23; i>=0; i--) {
+                     const d = new Date(now.getTime() - i * 60 * 60 * 1000);
+                     const label = d.getHours() + ':00';
+                     labels.push(label);
+                     chartMap.set(label, 0);
+                 }
+              } else {
+                 const days = timeRange === '7d' ? 7 : 30;
+                 for(let i=days-1; i>=0; i--) {
+                     const d = new Date(now.getTime() - i * 86400000);
+                     const label = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+                     labels.push(label);
+                     chartMap.set(label, 0);
+                 }
               }
+
+              filteredOrders.forEach((o: any) => {
+                  const timestamp = o.timestamp ? new Date(o.timestamp) : new Date(o.date);
+                  let key;
+                  if (isHourly) {
+                      key = timestamp.getHours() + ':00';
+                  } else {
+                      key = timestamp.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+                  }
+                  
+                  if (chartMap.has(key)) {
+                      chartMap.set(key, chartMap.get(key) + parseFloat(o.amount || 0));
+                  }
+              });
+
+              const chartData = labels.map(name => ({ name, revenue: chartMap.get(name) || 0 }));
+
+              setStats({
+                  revenue: totalRevenue,
+                  orders: totalOrdersCount,
+                  visits: totalVisits,
+                  customers: uniqueCustomers,
+                  chartData
+              });
+              
+              setIsLoading(false);
+              return; // Exit successfully
           } catch (e) {
-              // Switch to offline mode for this session if fetch fails
               setBackendAvailable(false);
           } finally {
               clearTimeout(timeoutId);
           }
       }
 
-      // 2. Offline / Mock Data Generation (Reactive to Time Range)
-      let mockChartData = [];
-      let kpi = { revenue: 0, orders: 0, customers: 0 };
+      // 2. Fallback: Aggregate from checkouts (likely 0 if no backend sync, but consistent)
+      const totalRevenue = checkouts.reduce((acc, c) => acc + (c.totalRevenue || 0), 0);
+      const totalOrders = checkouts.reduce((acc, c) => acc + (c.conversions || 0), 0);
+      const totalVisits = checkouts.reduce((acc, c) => acc + (c.visits || 0), 0);
       
+      // Empty chart for fallback (No random data)
+      let mockChartData = [];
+      const now = new Date();
       if (timeRange === '24h') {
-         // Generate hourly data for 24h
-         const now = new Date();
          mockChartData = Array.from({length: 24}, (_, i) => {
              const d = new Date(now.getTime() - (23 - i) * 60 * 60 * 1000);
-             return {
-                 name: d.getHours() + ':00',
-                 revenue: Math.floor(Math.random() * 150) + 10
-             };
+             return { name: d.getHours() + ':00', revenue: 0 };
          });
-         // Mock KPI for 24h
-         kpi = { revenue: 1240.50, orders: 24, customers: 21 };
-      } else if (timeRange === '7d') {
-         // Generate daily data for 7d
-         const days = 7;
-         mockChartData = Array.from({length: days}, (_, i) => ({
-             name: new Date(Date.now() - (days-1-i)*86400000).toLocaleDateString('en-US', { weekday: 'short' }),
-             revenue: Math.floor(Math.random() * 2000) + 500
-         }));
-         // Mock KPI for 7d
-         kpi = { revenue: 8450.00, orders: 98, customers: 85 };
       } else {
-         // Generate daily data for 30d
-         const days = 30;
+         const days = timeRange === '7d' ? 7 : 30;
          mockChartData = Array.from({length: days}, (_, i) => ({
              name: new Date(Date.now() - (days-1-i)*86400000).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
-             revenue: Math.floor(Math.random() * 800) + 150
+             revenue: 0 
          }));
-         // Mock KPI for 30d
-         kpi = { revenue: 24500.00, orders: 342, customers: 310 };
       }
       
       setStats({
-          revenue: kpi.revenue,
-          orders: kpi.orders,
-          visits: kpi.customers * 3,
-          customers: kpi.customers,
+          revenue: totalRevenue,
+          orders: totalOrders,
+          visits: totalVisits,
+          customers: totalOrders, 
           chartData: mockChartData
       });
       setIsLoading(false);
@@ -111,7 +152,7 @@ const DashboardHome = () => {
         const interval = setInterval(fetchStats, 10000);
         return () => clearInterval(interval);
       }
-  }, [timeRange, backendAvailable]);
+  }, [timeRange, backendAvailable, checkouts]); 
 
   // Chart Colors
   const gridColor = theme === 'dark' ? '#1f2937' : '#e5e7eb';
@@ -204,7 +245,7 @@ const DashboardHome = () => {
         {/* Bottom Stats Row */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 border-t border-gray-200 dark:border-gray-800">
           
-          {/* Visits */}
+          {/* Customers */}
           <div className="p-8 border-r border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-[#161616]/50">
             <p className="text-gray-500 font-medium mb-2">Unique Customers</p>
             <h3 className={`text-4xl font-bold text-gray-900 dark:text-white transition-all duration-300 ${blurClass}`}>
@@ -212,7 +253,7 @@ const DashboardHome = () => {
             </h3>
           </div>
 
-          {/* Purchases */}
+          {/* Orders */}
           <div className="p-8 border-r border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-[#161616]/50">
             <p className="text-gray-500 font-medium mb-2">Total Orders</p>
             <h3 className={`text-4xl font-bold text-gray-900 dark:text-white transition-all duration-300 ${blurClass}`}>
