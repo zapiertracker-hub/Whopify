@@ -9,13 +9,12 @@ import {
   Download, Zap, Layout, Trash2, Banknote, Landmark, Bitcoin, Upload,
   ChevronRight, Megaphone, Tags, Grid, LogOut, ChevronDown, Lock
 } from 'lucide-react';
-import DiscountsPage from './DiscountsPage';
 import EmailMarketingPage from './EmailMarketingPage';
 import AffiliatesPage from './AffiliatesPage';
 import AppsPage from './AppsPage';
 import DomainsPage from './DomainsPage';
 
-type Tab = 'general' | 'account' | 'security' | 'billing' | 'payments' | 'portal' | 'domains' | 'marketing' | 'discounts' | 'apps' | 'updates';
+type Tab = 'general' | 'account' | 'security' | 'billing' | 'payments' | 'portal' | 'domains' | 'marketing' | 'apps' | 'updates';
 
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : '';
 
@@ -49,7 +48,6 @@ const SettingsPage = () => {
     { id: 'portal', label: 'Portal', icon: Store, desc: 'Customer self-serve' },
     { id: 'domains', label: 'Domains', icon: Globe, desc: 'Custom domain' },
     { id: 'marketing', label: 'Marketing', icon: Megaphone, desc: 'Email & affiliates' },
-    { id: 'discounts', label: 'Discounts', icon: Tags, desc: 'Coupons' },
     { id: 'apps', label: 'Integrations', icon: Grid, desc: 'Connected tools' },
     { id: 'updates', label: 'Updates', icon: Sparkles, desc: 'Changelog' },
   ];
@@ -734,8 +732,6 @@ const SettingsPage = () => {
                   {marketingSubTab === 'email' ? <EmailMarketingPage /> : <AffiliatesPage />}
               </div>
           )}
-
-          {activeTab === 'discounts' && <DiscountsPage />}
 
           {activeTab === 'apps' && <AppsPage />}
 

@@ -299,7 +299,6 @@ const LiveCreditCardForm = ({ appearance, errors, setErrors, t }: { appearance: 
   );
 };
 
-// --- Stripe Express Checkout Component ---
 const StripeExpressCheckout = ({ totalDue, currency, config, appearance, t, selectedUpsellIds }: any) => {
   const stripe = useStripe();
   const [paymentRequest, setPaymentRequest] = useState<any>(null);
@@ -320,8 +319,10 @@ const StripeExpressCheckout = ({ totalDue, currency, config, appearance, t, sele
     });
 
     pr.canMakePayment().then((result) => {
-      if (result) {
+      if (result && (result.applePay || result.googlePay)) {
         setPaymentRequest(pr);
+      } else {
+        setPaymentRequest(null);
       }
     });
 
