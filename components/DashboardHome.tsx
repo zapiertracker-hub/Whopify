@@ -1,7 +1,7 @@
 
 import React, { useContext, useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Plus, Play, Mail, ArrowRight } from 'lucide-react';
+import { Plus, Play, Mail, ArrowRight, ShoppingBag, X } from 'lucide-react';
 import { AppContext } from '../AppContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,7 +10,7 @@ const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:300
 const DashboardHome = () => {
   const { settings, theme, ghostMode, checkouts } = useContext(AppContext);
   const navigate = useNavigate();
-  const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('30d');
+  const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | '90d'>('30d');
   
   // Real Data State
   const [stats, setStats] = useState({
@@ -23,6 +23,82 @@ const DashboardHome = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [backendAvailable, setBackendAvailable] = useState(true);
+
+  // Live Notification State
+  const [notification, setNotification] = useState<{
+    name: string;
+    product: string;
+    amount: string;
+    location: string;
+    image: string;
+  } | null>(null);
+  const [isNotificationVisible, setIsNotificationVisible] = useState(false);
+
+  // Live Notification Simulation
+  useEffect(() => {
+    const customers = [
+        { name: "Alex M.", loc: "New York, USA" },
+        { name: "Sarah K.", loc: "London, UK" },
+        { name: "Michael B.", loc: "Toronto, CA" },
+        { name: "Emma W.", loc: "Paris, FR" },
+        { name: "David R.", loc: "Berlin, DE" },
+        { name: "Sophie L.", loc: "Dubai, AE" },
+        { name: "James S.", loc: "Sydney, AU" },
+        { name: "Olivia P.", loc: "Tokyo, JP" }
+    ];
+    
+    const products = [
+        { name: "Premium Bundle", price: "49.99", img: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=100&q=80" },
+        { name: "Starter Kit", price: "29.00", img: "https://images.unsplash.com/photo-1628191011993-43508d53bb52?w=100&q=80" },
+        { name: "Pro Access", price: "99.00", img: "https://images.unsplash.com/photo-1633409361618-c73427e4e206?w=100&q=80" },
+        { name: "E-Book Vol. 1", price: "19.99", img: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=100&q=80" }
+    ];
+
+    const showNotification = () => {
+       const customer = customers[Math.floor(Math.random() * customers.length)];
+       const product = products[Math.floor(Math.random() * products.length)];
+       
+       setNotification({
+           name: customer.name,
+           location: customer.loc,
+           product: product.name,
+           amount: product.price,
+           image: product.img
+       });
+       
+       // Trigger animation in
+       requestAnimationFrame(() => setIsNotificationVisible(true));
+
+       // Auto hide after 6 seconds
+       setTimeout(() => {
+           setIsNotificationVisible(false);
+           // Wait for exit animation to finish before removing from DOM
+           setTimeout(() => setNotification(null), 700);
+       }, 6000);
+    };
+
+    // Initial trigger delayed by 3s to let page load
+    const initialTimer = setTimeout(showNotification, 3000);
+    
+    // Random interval trigger (between 15s and 30s)
+    let loopTimer: any;
+    const loop = () => {
+        const delay = Math.random() * (30000 - 15000) + 15000;
+        loopTimer = setTimeout(() => {
+            showNotification();
+            loop();
+        }, delay);
+    };
+    
+    // Start loop after initial
+    const startLoopTimer = setTimeout(loop, 10000);
+
+    return () => {
+        clearTimeout(initialTimer);
+        clearTimeout(startLoopTimer);
+        clearTimeout(loopTimer);
+    }
+  }, []);
 
   const fetchStats = async () => {
       setIsLoading(true);
@@ -46,6 +122,7 @@ const DashboardHome = () => {
               if (timeRange === '24h') cutoff.setHours(now.getHours() - 24);
               if (timeRange === '7d') cutoff.setDate(now.getDate() - 7);
               if (timeRange === '30d') cutoff.setDate(now.getDate() - 30);
+              if (timeRange === '90d') cutoff.setDate(now.getDate() - 90);
 
               const filteredOrders = Array.isArray(orders) ? orders.filter((o: any) => {
                   const d = o.timestamp ? new Date(o.timestamp) : new Date(o.date);
@@ -72,7 +149,7 @@ const DashboardHome = () => {
                      chartMap.set(label, 0);
                  }
               } else {
-                 const days = timeRange === '7d' ? 7 : 30;
+                 const days = timeRange === '7d' ? 7 : (timeRange === '30d' ? 30 : 90);
                  for(let i=days-1; i>=0; i--) {
                      const d = new Date(now.getTime() - i * 86400000);
                      const label = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
@@ -128,7 +205,7 @@ const DashboardHome = () => {
              return { name: d.getHours() + ':00', revenue: 0 };
          });
       } else {
-         const days = timeRange === '7d' ? 7 : 30;
+         const days = timeRange === '7d' ? 7 : (timeRange === '30d' ? 30 : 90);
          mockChartData = Array.from({length: days}, (_, i) => ({
              name: new Date(Date.now() - (days-1-i)*86400000).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
              revenue: 0 
@@ -165,7 +242,7 @@ const DashboardHome = () => {
   const blurClass = ghostMode ? 'blur-md select-none' : '';
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-fade-in pt-4 pb-20">
+    <div className="max-w-6xl mx-auto space-y-8 animate-fade-in pt-4 pb-20 relative">
       
       {/* Header Section */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -216,6 +293,12 @@ const DashboardHome = () => {
             >
               Last 30 days
             </button>
+            <button 
+              onClick={() => setTimeRange('90d')}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all active:scale-95 whitespace-nowrap ${timeRange === '90d' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            >
+              Last 90 days
+            </button>
           </div>
         </div>
 
@@ -230,7 +313,14 @@ const DashboardHome = () => {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: tickColor, fontSize: 12}} dy={10} />
+              <XAxis 
+                dataKey="name" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{fill: tickColor, fontSize: 12}} 
+                dy={10} 
+                interval={timeRange === '90d' ? 6 : timeRange === '30d' ? 2 : 0}
+              />
               <YAxis axisLine={false} tickLine={false} tick={{fill: tickColor, fontSize: 12}} tickFormatter={(value) => `$${value}`} />
               <Tooltip 
                 contentStyle={{ backgroundColor: tooltipBg, borderRadius: '12px', border: `1px solid ${tooltipBorder}`, color: tooltipText }}
@@ -413,6 +503,40 @@ const DashboardHome = () => {
          </div>
 
       </div>
+
+      {/* Live Order Notification */}
+      {notification && (
+        <div className={`fixed bottom-6 left-6 z-50 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] ${isNotificationVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+            <div className="bg-white/90 dark:bg-[#111111]/90 backdrop-blur-xl border border-gray-200/50 dark:border-gray-800/50 rounded-2xl p-4 shadow-2xl shadow-black/10 dark:shadow-black/50 flex items-center gap-4 max-w-sm w-full border-l-4 border-l-[#f97316]">
+                <div className="relative shrink-0">
+                    <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                        <img src={notification.image} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-0.5 border-2 border-white dark:border-[#111111]">
+                        <ShoppingBag size={10} className="text-white" fill="currentColor" />
+                    </div>
+                </div>
+                <div className="flex-1 min-w-0 pr-6">
+                    <div className="flex items-baseline justify-between">
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate">{notification.name}</h4>
+                        <span className="text-[10px] text-gray-400 font-medium">Just now</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                        Purchased <span className="text-gray-700 dark:text-gray-300 font-medium">{notification.product}</span>
+                    </p>
+                    <p className="text-xs font-bold text-[#f97316] mt-1">
+                        ${notification.amount} <span className="text-gray-300 dark:text-gray-700 font-normal mx-1">•</span> <span className="text-gray-400 font-normal">{notification.location}</span>
+                    </p>
+                </div>
+                <button 
+                    onClick={() => setIsNotificationVisible(false)} 
+                    className="absolute top-2 right-2 text-gray-300 hover:text-gray-500 dark:hover:text-gray-200 transition-colors"
+                >
+                    <X size={14} />
+                </button>
+            </div>
+        </div>
+      )}
 
     </div>
   );
