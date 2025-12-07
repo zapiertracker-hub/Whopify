@@ -30,7 +30,8 @@ import {
   Check,
   Grid,
   Tags,
-  Puzzle
+  Puzzle,
+  FileText
 } from 'lucide-react';
 import DashboardHome from './components/DashboardHome';
 import AnalyticsPage from './components/AnalyticsPage';
@@ -44,7 +45,7 @@ import OrderConfirmation from './components/OrderConfirmation';
 import PageTracker from './components/PageTracker'; 
 import HelpCenterPage from './components/HelpCenterPage';
 import GhostLinkPage from './components/GhostLinkPage'; 
-import GhostAnalyticsPage from './components/GhostAnalyticsPage'; 
+import InvoicesPage from './components/InvoicesPage';
 import AppsPage from './components/AppsPage';
 import DiscountsPage from './components/DiscountsPage';
 import HomePage from './components/HomePage';
@@ -227,8 +228,8 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
     {
       title: 'Tools',
       items: [
-        { path: '/tools/ghost-link', label: 'Ghost Link', icon: Ghost },
-        { path: '/tools/ghost-analytics', label: 'Ghost Analytics', icon: PieChart },
+        { path: '/tools/ghost-links', label: 'Ghost Links', icon: Ghost },
+        { path: '/tools/invoices', label: 'Invoices', icon: FileText },
       ]
     },
     {
@@ -912,8 +913,8 @@ export default function App() {
                   <Route path="/customers" element={<CustomersPage />} />
                   <Route path="/coupons" element={<DiscountsPage />} />
                   <Route path="/apps" element={<AppsPage />} />
-                  <Route path="/tools/ghost-link" element={<GhostLinkPage />} />
-                  <Route path="/tools/ghost-analytics" element={<GhostAnalyticsPage />} />
+                  <Route path="/tools/ghost-links" element={<GhostLinkPage />} />
+                  <Route path="/tools/invoices" element={<InvoicesPage />} />
                   <Route path="/help" element={<HelpCenterPage />} />
 
                   {/* Fallback for logged in users */}
