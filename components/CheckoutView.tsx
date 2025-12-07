@@ -250,12 +250,13 @@ const InteractiveCreditCardForm = ({ cardState, setCardState, errors, setErrors,
 };
 
 const LiveCreditCardForm = ({ appearance, errors, setErrors, t }: { appearance: 'light' | 'dark', errors: any, setErrors: any, t: any }) => {
-  const elementOptions = {
+  const elementOptions = React.useMemo(() => ({
     style: {
       base: { fontSize: '16px', color: appearance === 'light' ? '#111827' : '#ffffff', '::placeholder': { color: appearance === 'light' ? '#9ca3af' : '#71717a' }, fontFamily: 'Inter, sans-serif', iconColor: appearance === 'light' ? '#6b7280' : '#a1a1aa' },
       invalid: { color: '#ef4444' },
     },
-  };
+  }), [appearance]);
+
   const handleChange = (event: any, field: string) => {
     if (event.error) setErrors((prev: any) => ({ ...prev, [field]: event.error.message }));
     else setErrors((prev: any) => ({ ...prev, [field]: '' }));
@@ -818,16 +819,16 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
   // Upsell State (Multiple)
   const [selectedUpsellIds, setSelectedUpsellIds] = useState<Set<string>>(new Set());
 
-  // Enabled Payment Methods Logic
-  const enabledMethods = config.paymentMethods.filter((m: PaymentMethod) => {
+  // Enabled Payment Methods Logic (Memoized to prevent effect triggers)
+  const enabledMethods = React.useMemo(() => config.paymentMethods.filter((m: PaymentMethod) => {
       switch (m) {
-          case 'stripe': return settings.stripeEnabled && (isDemo || settings.stripePublishableKey);
+          case 'stripe': return settings.stripeEnabled && (isDemo || (settings.stripePublishableKey && settings.stripePublishableKey.trim()));
           case 'manual': return settings.manualPaymentEnabled;
           case 'bank_transfer': return settings.bankTransferEnabled;
           case 'crypto': return settings.cryptoEnabled;
           default: return false;
       }
-  });
+  }), [config.paymentMethods, settings, isDemo]);
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
 
@@ -916,12 +917,13 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
   };
 
   useEffect(() => {
-    setIsDemo(isPreview || (!settings.stripePublishableKey && !settings.manualPaymentEnabled));
+    setIsDemo(isPreview || (!settings.stripePublishableKey?.trim() && !settings.manualPaymentEnabled));
   }, [isPreview, settings.stripePublishableKey, settings.manualPaymentEnabled]);
 
   useEffect(() => {
-    if (!isDemo && settings.stripeEnabled && settings.stripePublishableKey && !settings.stripePublishableKey.includes('...')) {
-      setStripePromise(loadStripe(settings.stripePublishableKey));
+    const key = settings.stripePublishableKey?.trim();
+    if (!isDemo && settings.stripeEnabled && key && !key.includes('...')) {
+      setStripePromise(loadStripe(key));
     } else {
       setStripePromise(null);
     }
@@ -1110,6 +1112,13 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
       appearance
   };
 
+  // Memoize Elements options
+  const elementsOptions = React.useMemo(() => ({
+      appearance: { theme: appearance === 'dark' ? 'night' : 'stripe', labels: 'floating' } as const,
+      // Removed mode and amount to ensure CardElement renders reliably even if amount calculation varies.
+      // These are only strictly required for PaymentElement.
+  }), [appearance]);
+
   return (
     <div style={themeStyles} className={`font-sans text-[var(--text-primary)] bg-[var(--bg-page)] ${isPreview ? 'h-full overflow-y-auto' : 'min-h-screen'} scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700`}>
       <div className={`${forceMobileLayout ? 'flex flex-col' : 'lg:grid lg:grid-cols-2'} ${isPreview ? 'min-h-full' : 'min-h-screen'}`}>
@@ -1180,12 +1189,7 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
               </div>
               
               {(stripePromise && !isDemo) ? (
-                  <Elements stripe={stripePromise} options={{ 
-                      appearance: { theme: appearance === 'dark' ? 'night' : 'stripe', labels: 'floating' },
-                      currency: currency.toLowerCase(),
-                      mode: 'payment',
-                      amount: Math.round(totalDue * 100)
-                  }}>
+                  <Elements stripe={stripePromise} options={elementsOptions}>
                       <CheckoutContent {...checkoutContentProps} />
                   </Elements>
               ) : (
