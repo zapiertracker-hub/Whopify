@@ -102,6 +102,7 @@ export interface CheckoutPage {
   upsell?: OrderBump; // Deprecated single upsell
 
   collectPhoneNumber?: boolean; // Toggle for phone number field
+  collectFullName?: boolean; // Toggle for full name field
 
   customThankYouLink?: {
     enabled: boolean;

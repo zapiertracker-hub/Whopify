@@ -1,4 +1,5 @@
 
+
 import React, { useState, useContext, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppContext } from '../AppContext';
@@ -540,7 +541,36 @@ const StoreBuilder = () => {
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
                         <User size={16} className="text-[#f97316]" /> Customer Info
                     </h3>
-                    <div className="bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+                    <div className="bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm space-y-4">
+                        
+                        {/* Full Name Toggle */}
+                        <div 
+                            className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer group ${config.collectFullName !== false ? 'bg-orange-50 dark:bg-orange-900/10 border-[#f97316]/30' : 'bg-gray-50 dark:bg-[#161616] border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
+                            onClick={() => setConfig({ ...config, collectFullName: config.collectFullName === false ? true : false })}
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className={`p-2.5 rounded-lg border transition-colors ${config.collectFullName !== false ? 'bg-[#f97316] border-[#f97316] text-white shadow-md shadow-orange-500/20' : 'bg-white dark:bg-black border-gray-200 dark:border-gray-800 text-gray-500'}`}>
+                                    <User size={18} />
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-sm font-bold transition-colors ${config.collectFullName !== false ? 'text-[#f97316]' : 'text-gray-900 dark:text-white'}`}>Full Name</span>
+                                        {config.collectFullName !== false && (
+                                            <span className="text-[9px] font-extrabold bg-[#f97316] text-white px-1.5 py-0.5 rounded uppercase tracking-wider shadow-sm">Required</span>
+                                        )}
+                                    </div>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 block leading-relaxed">
+                                        Collect customer's full name for orders.
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#f97316] ${config.collectFullName !== false ? 'bg-[#f97316]' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition transition-transform ${config.collectFullName !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </div>
+                        </div>
+
+                        {/* Phone Number Toggle */}
                         <div 
                             className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer group ${config.collectPhoneNumber !== false ? 'bg-orange-50 dark:bg-orange-900/10 border-[#f97316]/30' : 'bg-gray-50 dark:bg-[#161616] border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
                             onClick={() => setConfig({ ...config, collectPhoneNumber: config.collectPhoneNumber === false ? true : false })}

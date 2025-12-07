@@ -1,4 +1,5 @@
 
+
 import React, { useContext, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CheckoutPage, StoreSettings, PaymentMethod, OrderBump, Coupon } from '../types';
@@ -139,13 +140,22 @@ const SecurityFooter = ({ t }: { t: any }) => (
   </div>
 );
 
-const CustomerFields = ({ values, onChange, errors, onBlur, t, collectPhone = true }: { values: any, onChange: (field: string, value: string) => void, errors: any, onBlur?: (field: string) => void, t: any, collectPhone?: boolean }) => (
+const CustomerFields = ({ values, onChange, errors, onBlur, t, collectPhone = true, collectFullName = true }: { values: any, onChange: (field: string, value: string) => void, errors: any, onBlur?: (field: string) => void, t: any, collectPhone?: boolean, collectFullName?: boolean }) => (
   <div className="space-y-4">
      <div>
         <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.email}</label>
         <input type="email" value={values.email} onChange={(e) => onChange('email', e.target.value)} onBlur={() => onBlur && onBlur('email')} className={`w-full bg-[var(--bg-input)] border rounded-lg px-3 py-3 text-[var(--text-primary)] text-base lg:text-sm outline-none transition-all placeholder-[var(--text-placeholder)] ${errors.email ? 'border-red-500/50 focus:border-red-500' : 'border-[var(--border-color)] focus:border-blue-600'}`} placeholder="you@example.com" />
         {errors.email && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={10} /> {errors.email}</p>}
      </div>
+     
+     {collectFullName && (
+        <div>
+            <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.fullName}</label>
+            <input type="text" value={values.fullName} onChange={(e) => onChange('fullName', e.target.value)} onBlur={() => onBlur && onBlur('fullName')} className={`w-full bg-[var(--bg-input)] border rounded-lg px-3 py-3 text-[var(--text-primary)] text-base lg:text-sm outline-none transition-all placeholder-[var(--text-placeholder)] ${errors.fullName ? 'border-red-500/50 focus:border-red-500' : 'border-[var(--border-color)] focus:border-blue-600'}`} />
+            {errors.fullName && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={10} /> {errors.fullName}</p>}
+        </div>
+    )}
+
      {collectPhone && (
          <div>
             <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.phoneNumber}</label>
@@ -153,11 +163,7 @@ const CustomerFields = ({ values, onChange, errors, onBlur, t, collectPhone = tr
             {errors.phoneNumber && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={10} /> {errors.phoneNumber}</p>}
          </div>
      )}
-     <div>
-        <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.fullName}</label>
-        <input type="text" value={values.fullName} onChange={(e) => onChange('fullName', e.target.value)} onBlur={() => onBlur && onBlur('fullName')} className={`w-full bg-[var(--bg-input)] border rounded-lg px-3 py-3 text-[var(--text-primary)] text-base lg:text-sm outline-none transition-all placeholder-[var(--text-placeholder)] ${errors.fullName ? 'border-red-500/50 focus:border-red-500' : 'border-[var(--border-color)] focus:border-blue-600'}`} />
-        {errors.fullName && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><AlertCircle size={10} /> {errors.fullName}</p>}
-    </div>
+     
     <div>
         <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.country}</label>
         <div className="relative">
@@ -666,7 +672,15 @@ const CheckoutContent = ({
             <h3 className="text-lg font-bold text-[var(--text-primary)] mb-3">{t.customerInfo}</h3>
 
             {/* Global Customer Fields */}
-            <CustomerFields values={billingDetails} onChange={updateBilling} errors={errors} onBlur={handleBillingBlur} t={t} collectPhone={config.collectPhoneNumber !== false} />
+            <CustomerFields 
+                values={billingDetails} 
+                onChange={updateBilling} 
+                errors={errors} 
+                onBlur={handleBillingBlur} 
+                t={t} 
+                collectPhone={config.collectPhoneNumber !== false} 
+                collectFullName={config.collectFullName !== false}
+            />
             
             {/* Multiple Order Bumps */}
             {allUpsells.length > 0 && (
@@ -1001,8 +1015,12 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
     const collectPhone = config.collectPhoneNumber !== false;
+    const collectFullName = config.collectFullName !== false;
     
-    if (!fullName || fullName.length < 2) newErrors.fullName = t.required;
+    if (collectFullName) {
+        if (!fullName || fullName.length < 2) newErrors.fullName = t.required;
+    }
+    
     if (!email || !isValidEmail(email)) newErrors.email = t.invalid;
     if (collectPhone) {
         if (!phoneNumber || phoneNumber.length < 6) newErrors.phoneNumber = t.invalid;
