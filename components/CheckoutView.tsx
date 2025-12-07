@@ -1086,20 +1086,28 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
       </div>
   );
 
-  const CheckoutFormWrapper = ({ children }: { children?: React.ReactNode }) => {
-      if (stripePromise && !isDemo) {
-          return (
-              <Elements stripe={stripePromise} options={{ 
-                  appearance: { theme: appearance === 'dark' ? 'night' : 'stripe', labels: 'floating' },
-                  currency: currency.toLowerCase(),
-                  mode: 'payment',
-                  amount: Math.round(totalDue * 100)
-              }}>
-                  {children}
-              </Elements>
-          );
-      }
-      return <>{children}</>;
+  const checkoutContentProps = {
+      config, 
+      settings, 
+      isDemo, 
+      t, 
+      currencySymbol, 
+      totalDue, 
+      allUpsells, 
+      selectedUpsellIds, 
+      toggleUpsell,
+      billingDetails: { fullName, email, phoneNumber, country }, 
+      updateBilling, 
+      errors, 
+      handleBillingBlur, 
+      validateForm, 
+      enabledMethods, 
+      paymentMethod, 
+      setPaymentMethod,
+      cardState,
+      setCardState,
+      currency,
+      appearance
   };
 
   return (
@@ -1171,31 +1179,18 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
                   )}
               </div>
               
-              <CheckoutFormWrapper>
-                  <CheckoutContent 
-                      config={config} 
-                      settings={settings} 
-                      isDemo={isDemo} 
-                      t={t} 
-                      currencySymbol={currencySymbol} 
-                      totalDue={totalDue} 
-                      allUpsells={allUpsells} 
-                      selectedUpsellIds={selectedUpsellIds} 
-                      toggleUpsell={toggleUpsell}
-                      billingDetails={{ fullName, email, phoneNumber, country }} 
-                      updateBilling={updateBilling} 
-                      errors={errors} 
-                      handleBillingBlur={handleBillingBlur} 
-                      validateForm={validateForm} 
-                      enabledMethods={enabledMethods} 
-                      paymentMethod={paymentMethod} 
-                      setPaymentMethod={setPaymentMethod}
-                      cardState={cardState}
-                      setCardState={setCardState}
-                      currency={currency}
-                      appearance={appearance}
-                  />
-              </CheckoutFormWrapper>
+              {(stripePromise && !isDemo) ? (
+                  <Elements stripe={stripePromise} options={{ 
+                      appearance: { theme: appearance === 'dark' ? 'night' : 'stripe', labels: 'floating' },
+                      currency: currency.toLowerCase(),
+                      mode: 'payment',
+                      amount: Math.round(totalDue * 100)
+                  }}>
+                      <CheckoutContent {...checkoutContentProps} />
+                  </Elements>
+              ) : (
+                  <CheckoutContent {...checkoutContentProps} />
+              )}
 
            </div>
         </div>
