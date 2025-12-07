@@ -140,7 +140,7 @@ const SecurityFooter = ({ t }: { t: any }) => (
   </div>
 );
 
-const CustomerFields = ({ values, onChange, errors, onBlur, t, collectPhone = true, collectFullName = true }: { values: any, onChange: (field: string, value: string) => void, errors: any, onBlur?: (field: string) => void, t: any, collectPhone?: boolean, collectFullName?: boolean }) => (
+const CustomerFields = ({ values, onChange, errors, onBlur, t, collectPhone = false, collectFullName = false }: { values: any, onChange: (field: string, value: string) => void, errors: any, onBlur?: (field: string) => void, t: any, collectPhone?: boolean, collectFullName?: boolean }) => (
   <div className="space-y-4">
      <div>
         <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.email}</label>
@@ -678,8 +678,8 @@ const CheckoutContent = ({
                 errors={errors} 
                 onBlur={handleBillingBlur} 
                 t={t} 
-                collectPhone={config.collectPhoneNumber !== false} 
-                collectFullName={config.collectFullName !== false}
+                collectPhone={config.collectPhoneNumber === true} 
+                collectFullName={config.collectFullName === true}
             />
             
             {/* Multiple Order Bumps */}
@@ -882,7 +882,7 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
 
   const handleBillingBlur = (field: string) => {
       const newErrors = { ...errors };
-      const collectPhone = config.collectPhoneNumber !== false;
+      const collectPhone = config.collectPhoneNumber === true;
       const t = translations[(config.language as LangCode) || 'en'];
 
       if (field === 'email') {
@@ -1014,8 +1014,8 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
-    const collectPhone = config.collectPhoneNumber !== false;
-    const collectFullName = config.collectFullName !== false;
+    const collectPhone = config.collectPhoneNumber === true;
+    const collectFullName = config.collectFullName === true;
     
     if (collectFullName) {
         if (!fullName || fullName.length < 2) newErrors.fullName = t.required;
@@ -1124,7 +1124,7 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
       enabledMethods, 
       paymentMethod, 
       setPaymentMethod,
-      cardState,
+      cardState, 
       setCardState,
       currency,
       appearance
