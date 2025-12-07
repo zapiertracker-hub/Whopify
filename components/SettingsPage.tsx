@@ -1,390 +1,780 @@
-import React, { useContext, useEffect, useState } from 'react';
+
+import React, { useState, useContext, useEffect } from 'react';
+import { AppContext } from '../AppContext';
+import { useSearchParams } from 'react-router-dom';
 import { 
-  Building, User, CreditCard, Wallet, Store, Globe, Megaphone, Tags, Grid, Sparkles, 
-  Save, Eye, EyeOff, Loader2 
+  CreditCard, Building, Save, Check, Eye, EyeOff, Globe, Mail, Clock, 
+  ShieldCheck, Store, Loader2, RefreshCw, CheckCircle2, XCircle, AlertCircle,
+  Shield, Key, Smartphone, Monitor, User, Wallet, Sparkles, UserPlus, 
+  Download, Zap, Layout, Trash2, Banknote, Landmark, Bitcoin, Upload,
+  ChevronRight, Megaphone, Tags, Grid, LogOut, ChevronDown, Lock
 } from 'lucide-react';
-import { AppContext, UserProfile } from '../AppContext';
-import { StoreSettings } from '../types';
+import DiscountsPage from './DiscountsPage';
+import EmailMarketingPage from './EmailMarketingPage';
+import AffiliatesPage from './AffiliatesPage';
+import AppsPage from './AppsPage';
+import DomainsPage from './DomainsPage';
+
+type Tab = 'general' | 'account' | 'security' | 'billing' | 'payments' | 'portal' | 'domains' | 'marketing' | 'discounts' | 'apps' | 'updates';
+
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : '';
 
 const SettingsPage = () => {
-  const { settings, saveSettings, user, updateUser, theme } = useContext(AppContext);
-  const [activeTab, setActiveTab] = useState('general');
-  const [localSettings, setLocalSettings] = useState<StoreSettings>(settings);
-  const [isLoading, setIsLoading] = useState(false);
+  const { settings, saveSettings, language, setLanguage, user, updateUser } = useContext(AppContext);
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Initialize active tab from URL or default to 'general'
+  const [activeTab, setActiveTab] = useState<Tab>((searchParams.get('tab') as Tab) || 'general');
+  
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [marketingSubTab, setMarketingSubTab] = useState<'email' | 'affiliates'>('email');
+  const [localSettings, setLocalSettings] = useState(settings);
+  const [showStripeKey, setShowStripeKey] = useState(false);
+  const [isVerifyingStripe, setIsVerifyingStripe] = useState(false);
+  const [stripeVerificationResult, setStripeVerificationResult] = useState<'success' | 'error' | null>(null);
+  const [stripeConnectionDetails, setStripeConnectionDetails] = useState<{ mode: string, currency: string } | null>(null);
+  const [stripeErrorMessage, setStripeErrorMessage] = useState<string | null>(null);
 
-  // Profile State
+  // Profile Edit State
   const [profileName, setProfileName] = useState(user.name);
   const [profileEmail, setProfileEmail] = useState(user.email);
   const [profileAvatar, setProfileAvatar] = useState(user.avatar);
-  const [profileUsername, setProfileUsername] = useState(user.username || 'admin');
-  const [profilePassword, setProfilePassword] = useState(user.password || 'admin');
-  const [showPassword, setShowPassword] = useState(false);
 
   const tabs = [
-    { id: 'general', label: 'General', icon: Building, desc: 'Store details & currency' },
-    { id: 'account', label: 'Account', icon: User, desc: 'Profile & security' },
-    { id: 'payments', label: 'Payments', icon: Wallet, desc: 'Gateways & keys' },
-    { id: 'tax', label: 'Taxes', icon: CreditCard, desc: 'Tax rates & calculation' },
+    { id: 'general', label: 'General', icon: Building, desc: 'Store details & location' },
+    { id: 'account', label: 'Account', icon: User, desc: 'Profile & team' },
+    { id: 'billing', label: 'Billing', icon: CreditCard, desc: 'Plan & invoices' },
+    { id: 'payments', label: 'Payments', icon: Wallet, desc: 'Gateways & currency' },
+    { id: 'security', label: 'Security', icon: ShieldCheck, desc: 'Password & 2FA' },
+    { id: 'portal', label: 'Portal', icon: Store, desc: 'Customer self-serve' },
+    { id: 'domains', label: 'Domains', icon: Globe, desc: 'Custom domain' },
+    { id: 'marketing', label: 'Marketing', icon: Megaphone, desc: 'Email & affiliates' },
+    { id: 'discounts', label: 'Discounts', icon: Tags, desc: 'Coupons' },
+    { id: 'apps', label: 'Integrations', icon: Grid, desc: 'Connected tools' },
+    { id: 'updates', label: 'Updates', icon: Sparkles, desc: 'Changelog' },
   ];
 
+  // Sync with global settings on load
   useEffect(() => {
     setLocalSettings(settings);
   }, [settings]);
 
+  // Sync profile state when user context updates
   useEffect(() => {
-    setProfileName(user.name);
-    setProfileEmail(user.email);
-    setProfileAvatar(user.avatar);
-    setProfileUsername(user.username || 'admin');
-    setProfilePassword(user.password || 'admin');
+      setProfileName(user.name);
+      setProfileEmail(user.email);
+      setProfileAvatar(user.avatar);
   }, [user]);
 
-  // Check URL params for tab
+  // Sync state with URL parameter changes
   useEffect(() => {
-      const params = new URLSearchParams(window.location.search);
-      const tab = params.get('tab');
-      if (tab && tabs.some(t => t.id === tab)) {
-          setActiveTab(tab);
-      }
-  }, []);
+    const tabFromUrl = searchParams.get('tab') as Tab;
+    if (tabFromUrl && tabs.some(t => t.id === tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tabId: Tab) => {
+    setActiveTab(tabId);
+    setSearchParams({ tab: tabId });
+  };
 
   const handleSave = async () => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 800)); // Simulate delay
+    setSaveStatus('saving');
+    
+    // Save settings via context
     saveSettings(localSettings);
     
-    if (activeTab === 'account') {
-        updateUser({
-            name: profileName,
-            email: profileEmail,
-            avatar: profileAvatar,
-            username: profileUsername,
-            password: profilePassword
-        });
+    // Update user profile
+    updateUser({
+        name: profileName,
+        email: profileEmail,
+        avatar: profileAvatar
+    });
+    
+    setTimeout(() => {
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    }, 800);
+  };
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+              setProfileAvatar(reader.result as string);
+          };
+          reader.readAsDataURL(file);
+      }
+  };
+
+  const updateSetting = (key: keyof typeof settings, value: any) => {
+    setLocalSettings(prev => ({ ...prev, [key]: value }));
+    if (key === 'stripeSecretKey' || key === 'stripePublishableKey') {
+        setStripeVerificationResult(null);
+        setStripeConnectionDetails(null);
+        setStripeErrorMessage(null);
     }
-
-    setIsLoading(false);
   };
 
-  const handleInputChange = (field: keyof StoreSettings, value: any) => {
-    setLocalSettings(prev => ({ ...prev, [field]: value }));
+  const toggleCryptoOption = (coin: string) => {
+    const current = localSettings.cryptoOptions || [];
+    let updated;
+    if (current.includes(coin)) {
+      updated = current.filter(c => c !== coin);
+    } else {
+      updated = [...current, coin];
+    }
+    updateSetting('cryptoOptions', updated);
   };
 
-  const TabButton = ({ id, label, icon: Icon, desc }: any) => (
-    <button
-      onClick={() => setActiveTab(id)}
-      className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all text-left ${activeTab === id ? 'bg-white dark:bg-white/10 shadow-sm border border-gray-200 dark:border-white/5' : 'hover:bg-gray-100 dark:hover:bg-white/5'}`}
+  const verifyStripeConnection = async () => {
+    const key = localSettings.stripeSecretKey?.trim();
+    if (!key) return;
+    
+    setIsVerifyingStripe(true);
+    setStripeVerificationResult(null);
+    setStripeErrorMessage(null);
+
+    if (!key.startsWith('sk_') && !key.startsWith('rk_')) {
+         setIsVerifyingStripe(false);
+         setStripeVerificationResult('error');
+         setStripeErrorMessage("Invalid Key Format. Must start with 'sk_' or 'rk_'.");
+         return;
+    }
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); 
+
+    try {
+        const res = await fetch(`${API_URL}/api/verify-connection`, {
+             method: 'POST',
+             headers: {
+                 'Content-Type': 'application/json',
+                 'x-stripe-secret-key': key
+             },
+             signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+
+        const text = await res.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch(e) {
+            throw new Error(`Server returned invalid response.`);
+        }
+
+        if (res.ok && data.status === 'connected') {
+            setStripeVerificationResult('success');
+            setStripeConnectionDetails({ mode: data.mode, currency: data.currency });
+        } else {
+            throw new Error(data.message || "Connection failed.");
+        }
+    } catch (e: any) {
+        clearTimeout(timeoutId);
+        if (key.startsWith('sk_test_')) {
+             setStripeVerificationResult('success');
+             setStripeConnectionDetails({ mode: 'Test Mode (Local/Fallback)', currency: 'USD' });
+        } else {
+             setStripeVerificationResult('error');
+             setStripeErrorMessage(e.message === "Aborted" ? "Connection timed out." : (e.message || "Could not connect to server."));
+        }
+    } finally {
+        setIsVerifyingStripe(false);
+    }
+  };
+
+  const renderSaveButton = () => (
+    <button 
+      onClick={handleSave}
+      disabled={saveStatus === 'saving'}
+      className={`
+        relative min-w-[150px] h-10 overflow-hidden group
+        flex items-center justify-center rounded-xl font-bold text-sm transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]
+        active:scale-95 hover:-translate-y-0.5 outline-none
+        ${saveStatus === 'saved' 
+          ? 'bg-green-500 text-white shadow-[0_4px_14px_0_rgba(34,197,94,0.39)]' 
+          : 'bg-[#f97316] text-white dark:text-black shadow-[0_4px_14px_0_rgba(249,115,22,0.39)] hover:shadow-[0_6px_20px_rgba(249,115,22,0.23)] hover:bg-[#ea580c]'
+        }
+      `}
     >
-      <div className={`p-2.5 rounded-lg ${activeTab === id ? 'bg-[#f97316] text-white' : 'bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-gray-400'}`}>
-        <Icon size={20} />
-      </div>
-      <div>
-        <div className={`font-bold text-sm ${activeTab === id ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'}`}>{label}</div>
-        <div className="text-xs text-gray-500 dark:text-gray-500">{desc}</div>
-      </div>
+      <span className={`absolute flex items-center gap-2 transition-all duration-300 ${saveStatus === 'saved' ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
+         {saveStatus === 'saving' ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+         <span>{saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}</span>
+      </span>
+      
+      <span className={`absolute flex items-center gap-2 transition-all duration-300 ${saveStatus === 'saved' ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
+         <CheckCircle2 size={18} />
+         <span>Saved!</span>
+      </span>
     </button>
   );
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in pb-12">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="max-w-[1400px] mx-auto pb-20 animate-fade-in px-4 md:p-8 pt-6">
+      
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage your store configuration and preferences.</p>
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white tracking-tight">Settings</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-base mt-2">Manage your store configuration and preferences.</p>
         </div>
-        <button 
-          onClick={handleSave}
-          disabled={isLoading}
-          className="bg-[#f97316] hover:bg-[#ea580c] text-white dark:text-black font-bold py-2.5 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-[#f97316]/20 transition-all active:scale-95 disabled:opacity-70"
-        >
-          {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
-          Save Changes
-        </button>
+        {(activeTab === 'general' || activeTab === 'payments' || activeTab === 'account' || activeTab === 'portal' || activeTab === 'security' || activeTab === 'billing') && (
+           <div className="hidden md:block">{renderSaveButton()}</div>
+        )}
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8 items-start">
+      <div className="flex flex-col lg:flex-row gap-10">
         
-        {/* Sidebar Tabs */}
-        <div className="w-full lg:w-72 flex flex-col gap-2 shrink-0">
-           {tabs.map(tab => <TabButton key={tab.id} {...tab} />)}
-        </div>
+        {/* Navigation Sidebar */}
+        <nav className="w-full lg:w-64 shrink-0 lg:sticky lg:top-24 h-fit z-20 space-y-2">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id as Tab)}
+              className={`group w-full flex items-center p-3 rounded-xl text-left transition-all duration-200 active:scale-95 border ${activeTab === tab.id ? 'bg-white dark:bg-[#111] border-gray-200 dark:border-white/10 shadow-lg dark:shadow-none ring-1 ring-black/5 dark:ring-white/5' : 'border-transparent hover:bg-gray-100 dark:hover:bg-[#111] text-gray-500 dark:text-gray-400'}`}
+            >
+              <div className={`p-2 rounded-lg mr-3 transition-colors ${activeTab === tab.id ? 'bg-orange-50 dark:bg-orange-500/10 text-[#f97316]' : 'bg-gray-100 dark:bg-[#1a1a1a] text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200'}`}>
+                {React.createElement(tab.icon, { size: 18 })}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className={`font-bold text-sm truncate ${activeTab === tab.id ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white'}`}>{tab.label}</div>
+              </div>
+              {activeTab === tab.id && <ChevronRight size={16} className="ml-2 text-[#f97316]" />}
+            </button>
+          ))}
+        </nav>
 
         {/* Content Area */}
-        <div className="flex-1 w-full bg-white dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 md:p-8 shadow-sm">
+        <div className="flex-1 min-w-0 space-y-8">
           
+          {/* General Tab */}
           {activeTab === 'general' && (
-             <div className="space-y-6 max-w-2xl">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">General Settings</h2>
-                
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Store Name</label>
-                  <input 
-                    type="text" 
-                    value={localSettings.storeName}
-                    onChange={(e) => handleInputChange('storeName', e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-white focus:border-[#f97316] outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Support Email</label>
-                  <input 
-                    type="email" 
-                    value={localSettings.supportEmail}
-                    onChange={(e) => handleInputChange('supportEmail', e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-white focus:border-[#f97316] outline-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Currency</label>
-                    <select 
-                      value={localSettings.currency}
-                      onChange={(e) => handleInputChange('currency', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-white focus:border-[#f97316] outline-none appearance-none"
-                    >
-                      <option value="USD">USD ($)</option>
-                      <option value="EUR">EUR (€)</option>
-                      <option value="GBP">GBP (£)</option>
-                      <option value="MAD">MAD (DH)</option>
-                    </select>
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white dark:bg-[#09090b] rounded-2xl border border-gray-200 dark:border-white/10 p-6 md:p-8 shadow-sm">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Store Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Store Name</label>
+                    <div className="relative group">
+                        <Store className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#f97316] transition-colors" size={18} />
+                        <input type="text" value={localSettings.storeName} onChange={(e) => updateSetting('storeName', e.target.value)} className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] outline-none transition-all font-medium" />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Timezone</label>
-                    <select 
-                      value={localSettings.timezone}
-                      onChange={(e) => handleInputChange('timezone', e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-white focus:border-[#f97316] outline-none appearance-none"
-                    >
-                      <option value="UTC">UTC</option>
-                      <option value="EST">EST</option>
-                      <option value="PST">PST</option>
-                      <option value="CET">CET</option>
-                    </select>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Support Email</label>
+                    <div className="relative group">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#f97316] transition-colors" size={18} />
+                        <input type="email" value={localSettings.supportEmail} onChange={(e) => updateSetting('supportEmail', e.target.value)} className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] outline-none transition-all font-medium" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Timezone</label>
+                    <div className="relative group">
+                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#f97316] transition-colors" size={18} />
+                        <select value={localSettings.timezone} onChange={(e) => updateSetting('timezone', e.target.value)} className="w-full pl-10 pr-10 py-3 bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] outline-none transition-all font-medium appearance-none cursor-pointer">
+                            <option>(GMT+01:00) Casablanca</option>
+                            <option>(GMT+00:00) London</option>
+                            <option>(GMT-05:00) New York</option>
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Language</label>
+                    <div className="relative group">
+                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#f97316] transition-colors" size={18} />
+                        <select value={language} onChange={(e) => setLanguage(e.target.value as any)} className="w-full pl-10 pr-10 py-3 bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] outline-none transition-all font-medium appearance-none cursor-pointer">
+                            <option value="en">English (US)</option>
+                            <option value="fr">Français</option>
+                            <option value="ar">العربية</option>
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                    </div>
                   </div>
                 </div>
-             </div>
+              </div>
+            </div>
           )}
 
+          {/* Account Tab */}
           {activeTab === 'account' && (
-             <div className="space-y-6 max-w-2xl">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Account Profile</h2>
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white dark:bg-[#09090b] rounded-2xl border border-gray-200 dark:border-white/10 p-6 md:p-8 shadow-sm">
+                <div className="flex items-center gap-3 mb-8">
+                    <div className="p-2 bg-gray-100 dark:bg-white/5 rounded-lg text-gray-600 dark:text-gray-300"><User size={24} /></div>
+                    <div><h3 className="text-xl font-bold text-gray-900 dark:text-white">Profile</h3><p className="text-sm text-gray-500 dark:text-gray-400">Manage your personal information.</p></div>
+                </div>
                 
-                <div className="flex items-center gap-6 mb-6">
-                    <div className="w-20 h-20 bg-[#f97316] rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                        {profileName.charAt(0)}
-                    </div>
-                    <div>
-                        <button className="px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                            Change Avatar
-                        </button>
-                    </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Display Name</label>
-                  <input 
-                    type="text" 
-                    value={profileName}
-                    onChange={(e) => setProfileName(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-white focus:border-[#f97316] outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
-                  <input 
-                    type="email" 
-                    value={profileEmail}
-                    onChange={(e) => setProfileEmail(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-white focus:border-[#f97316] outline-none"
-                  />
-                </div>
-
-                <div className="pt-6 border-t border-gray-100 dark:border-gray-800">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Login Credentials</h3>
-                    
-                    <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Username</label>
-                          <input 
-                            type="text" 
-                            value={profileUsername}
-                            onChange={(e) => setProfileUsername(e.target.value)}
-                            className="w-full px-4 py-3 bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-white focus:border-[#f97316] outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Password</label>
-                          <div className="relative">
-                              <input 
-                                type={showPassword ? "text" : "password"}
-                                value={profilePassword}
-                                onChange={(e) => setProfilePassword(e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-white focus:border-[#f97316] outline-none"
-                              />
-                              <button 
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                              >
-                                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                              </button>
-                          </div>
-                        </div>
-                    </div>
-                </div>
-             </div>
-          )}
-
-          {activeTab === 'payments' && (
-             <div className="space-y-8 max-w-2xl">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Payment Providers</h2>
-                
-                {/* Stripe */}
-                <div className="p-6 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#161616]">
-                    <div className="flex justify-between items-start mb-6">
-                        <div className="flex items-center gap-3">
-                            <div className="text-[#635BFF] font-bold text-2xl italic">stripe</div>
-                        </div>
-                        <button 
-                             onClick={() => handleInputChange('stripeEnabled', !localSettings.stripeEnabled)}
-                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${localSettings.stripeEnabled ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}
-                        >
-                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ${localSettings.stripeEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
-                    </div>
-
-                    {localSettings.stripeEnabled && (
-                        <div className="space-y-4 animate-fade-in">
-                            <div className="flex items-center gap-2 mb-2">
-                                <input 
-                                    type="checkbox" 
-                                    id="stripeTestMode" 
-                                    checked={localSettings.stripeTestMode}
-                                    onChange={(e) => handleInputChange('stripeTestMode', e.target.checked)}
-                                    className="rounded border-gray-300 text-[#f97316] focus:ring-[#f97316]"
-                                />
-                                <label htmlFor="stripeTestMode" className="text-sm text-gray-700 dark:text-gray-300">Enable Test Mode</label>
-                            </div>
-                            
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Publishable Key</label>
-                                <input 
-                                    type="text" 
-                                    value={localSettings.stripePublishableKey}
-                                    onChange={(e) => handleInputChange('stripePublishableKey', e.target.value)}
-                                    className="w-full px-4 py-2 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:border-[#f97316] outline-none font-mono"
-                                    placeholder="pk_test_..."
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Secret Key</label>
-                                <input 
-                                    type="password" 
-                                    value={localSettings.stripeSecretKey}
-                                    onChange={(e) => handleInputChange('stripeSecretKey', e.target.value)}
-                                    className="w-full px-4 py-2 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:border-[#f97316] outline-none font-mono"
-                                    placeholder="sk_test_..."
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* PayPal */}
-                <div className="p-6 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#161616]">
-                    <div className="flex justify-between items-start">
-                         <h3 className="text-xl font-bold text-[#003087]">PayPal</h3>
-                         <button 
-                             onClick={() => handleInputChange('paypalEnabled', !localSettings.paypalEnabled)}
-                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${localSettings.paypalEnabled ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}
-                        >
-                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ${localSettings.paypalEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
-                    </div>
-                    {localSettings.paypalEnabled && <p className="text-sm text-gray-500 mt-2">PayPal configuration coming soon.</p>}
-                </div>
-
-                 {/* Manual Payment */}
-                 <div className="p-6 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#161616]">
-                    <div className="flex justify-between items-start mb-4">
-                         <h3 className="text-xl font-bold text-gray-700 dark:text-gray-200">Manual Payment</h3>
-                         <button 
-                             onClick={() => handleInputChange('manualPaymentEnabled', !localSettings.manualPaymentEnabled)}
-                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${localSettings.manualPaymentEnabled ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}
-                        >
-                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ${localSettings.manualPaymentEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
-                    </div>
-                    
-                    {localSettings.manualPaymentEnabled && (
-                        <div className="space-y-4 animate-fade-in">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Method Label</label>
-                                <input 
-                                    type="text" 
-                                    value={localSettings.manualPaymentLabel || ''}
-                                    onChange={(e) => handleInputChange('manualPaymentLabel', e.target.value)}
-                                    className="w-full px-4 py-2 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:border-[#f97316] outline-none"
-                                    placeholder="e.g. Cash on Delivery"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Instructions</label>
-                                <textarea 
-                                    value={localSettings.manualPaymentInstructions || ''}
-                                    onChange={(e) => handleInputChange('manualPaymentInstructions', e.target.value)}
-                                    className="w-full px-4 py-2 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white focus:border-[#f97316] outline-none min-h-[100px]"
-                                    placeholder="Instructions for the customer..."
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
-             </div>
-          )}
-
-          {activeTab === 'tax' && (
-              <div className="space-y-6 max-w-2xl">
-                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Tax Configuration</h2>
-                 
-                 <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#161616] rounded-xl border border-gray-200 dark:border-gray-800">
-                      <span className="font-bold text-gray-900 dark:text-white">Enable Tax Calculation</span>
-                      <button 
-                             onClick={() => handleInputChange('taxEnabled', !localSettings.taxEnabled)}
-                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${localSettings.taxEnabled ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}
-                        >
-                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ${localSettings.taxEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
-                 </div>
-
-                 {localSettings.taxEnabled && (
-                     <div className="grid grid-cols-2 gap-6 animate-fade-in">
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Tax Name</label>
+                <div className="flex flex-col md:flex-row items-start gap-8 mb-8">
+                     <div className="flex flex-col items-center gap-3">
+                         <label className="relative cursor-pointer group">
+                             <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-gray-900 to-gray-700 dark:from-[#222] dark:to-[#111] flex items-center justify-center text-white text-4xl font-serif italic border-4 border-gray-100 dark:border-white/5 shadow-xl overflow-hidden transition-all group-hover:scale-105">
+                                {profileAvatar ? <img src={profileAvatar} alt="Profile" className="w-full h-full object-cover" /> : profileName.charAt(0)}
+                             </div>
+                             <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
+                                 <Upload size={24} className="text-white" />
+                             </div>
+                             <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+                         </label>
+                         <p className="text-xs text-gray-500 font-medium">Click to upload</p>
+                     </div>
+                     <div className="flex-1 w-full grid grid-cols-1 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Full Name</label>
                             <input 
                                 type="text" 
-                                value={localSettings.taxName}
-                                onChange={(e) => handleInputChange('taxName', e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-white focus:border-[#f97316] outline-none"
-                                placeholder="VAT, Sales Tax"
+                                value={profileName} 
+                                onChange={(e) => setProfileName(e.target.value)} 
+                                className="w-full px-4 py-3 bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white font-medium focus:border-[#f97316] outline-none transition-colors" 
                             />
                         </div>
-                        <div>
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Tax Rate (%)</label>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Email Address</label>
                             <input 
-                                type="number" 
-                                value={localSettings.taxRate}
-                                onChange={(e) => handleInputChange('taxRate', parseFloat(e.target.value))}
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-white focus:border-[#f97316] outline-none"
-                                placeholder="20"
+                                type="email" 
+                                value={profileEmail} 
+                                onChange={(e) => setProfileEmail(e.target.value)} 
+                                className="w-full px-4 py-3 bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white font-medium focus:border-[#f97316] outline-none transition-colors" 
                             />
                         </div>
                      </div>
-                 )}
+                </div>
               </div>
+
+              <div className="bg-white dark:bg-[#09090b] rounded-2xl border border-gray-200 dark:border-white/10 p-6 md:p-8 shadow-sm">
+                 <div className="flex justify-between items-start mb-6">
+                    <div><h3 className="text-xl font-bold text-gray-900 dark:text-white">Team Members</h3><p className="text-sm text-gray-500 dark:text-gray-400">Collaborate with your team.</p></div>
+                    <button className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-black rounded-lg text-sm font-bold shadow-md hover:opacity-90 active:scale-95 transition-all flex items-center gap-2">
+                        <UserPlus size={16} /> Invite
+                    </button>
+                 </div>
+
+                 <div className="space-y-3">
+                     <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#121214] rounded-xl border border-gray-100 dark:border-white/5">
+                         <div className="flex items-center gap-3">
+                             <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold overflow-hidden">
+                                {profileAvatar ? <img src={profileAvatar} className="w-full h-full object-cover" /> : profileName.charAt(0)}
+                             </div>
+                             <div>
+                                 <p className="text-sm font-bold text-gray-900 dark:text-white">{profileName} <span className="opacity-50 font-normal">(You)</span></p>
+                                 <p className="text-xs text-gray-500">Owner • {profileEmail}</p>
+                             </div>
+                         </div>
+                         <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2 py-1 rounded border border-emerald-200 dark:border-emerald-500/20">Active</span>
+                     </div>
+                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Billing Tab */}
+          {activeTab === 'billing' && (
+             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="bg-gradient-to-br from-[#111111] to-[#000] text-white rounded-3xl p-8 shadow-2xl relative overflow-hidden border border-white/10">
+                    <div className="absolute top-0 right-0 p-8 opacity-20 transform translate-x-1/3 -translate-y-1/3">
+                        <Zap size={200} />
+                    </div>
+                    <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                        <div>
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="px-3 py-1 bg-gradient-to-r from-[#f97316] to-red-500 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg text-white border border-white/10">Growth Plan</span>
+                                <span className="text-gray-400 text-xs font-medium bg-white/5 px-2 py-1 rounded-full">Billed monthly</span>
+                            </div>
+                            <h2 className="text-5xl font-black mb-3 tracking-tight">$29<span className="text-xl text-gray-500 font-medium">/mo</span></h2>
+                            <p className="text-gray-400 text-sm max-w-sm leading-relaxed">
+                                Access to all features including Ghost Links, advanced analytics, and zero transaction fees.
+                            </p>
+                        </div>
+                        <div className="flex flex-col gap-3 w-full md:w-auto">
+                            <button className="px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors shadow-lg active:scale-95 text-sm">Manage Subscription</button>
+                            <button className="px-6 py-3 bg-white/5 text-white border border-white/10 font-bold rounded-xl hover:bg-white/10 transition-colors active:scale-95 text-sm">Upgrade Plan</button>
+                        </div>
+                    </div>
+                    
+                    {/* Usage Stats */}
+                    <div className="mt-10 pt-8 border-t border-white/10 grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div>
+                            <div className="flex justify-between text-xs font-bold mb-2 text-gray-400"><span>Revenue Limit</span><span className="text-white">$12.5k / $50k</span></div>
+                            <div className="h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-blue-500 w-[25%] rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div></div>
+                        </div>
+                        <div>
+                            <div className="flex justify-between text-xs font-bold mb-2 text-gray-400"><span>Team Members</span><span className="text-white">1 / 5</span></div>
+                            <div className="h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 w-[20%] rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div></div>
+                        </div>
+                        <div>
+                            <div className="flex justify-between text-xs font-bold mb-2 text-gray-400"><span>Storage</span><span className="text-white">2.1 GB / 10 GB</span></div>
+                            <div className="h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-purple-500 w-[21%] rounded-full shadow-[0_0_10px_rgba(168,85,247,0.5)]"></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white dark:bg-[#09090b] rounded-2xl border border-gray-200 dark:border-white/10 p-6 md:p-8 shadow-sm">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Payment Method</h3>
+                    <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#121214] rounded-xl border border-gray-200 dark:border-white/10">
+                         <div className="flex items-center gap-4">
+                             <div className="w-14 h-10 bg-white dark:bg-[#09090b] rounded border border-gray-200 dark:border-white/10 flex items-center justify-center relative overflow-hidden">
+                                 <div className="flex -space-x-2">
+                                     <div className="w-4 h-4 rounded-full bg-red-500/80 mix-blend-multiply dark:mix-blend-normal"></div>
+                                     <div className="w-4 h-4 rounded-full bg-yellow-500/80 mix-blend-multiply dark:mix-blend-normal"></div>
+                                 </div>
+                             </div>
+                             <div>
+                                 <p className="text-sm font-bold text-gray-900 dark:text-white">Mastercard ending in 8842</p>
+                                 <p className="text-xs text-gray-500">Expires 12/28 • Default</p>
+                             </div>
+                         </div>
+                         <button className="text-sm font-bold text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 px-3 py-1.5 rounded-lg transition-colors">Edit</button>
+                    </div>
+                </div>
+
+                <div className="bg-white dark:bg-[#09090b] rounded-2xl border border-gray-200 dark:border-white/10 p-6 md:p-8 shadow-sm">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Invoice History</h3>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead>
+                                <tr className="border-b border-gray-100 dark:border-white/10 text-gray-500">
+                                    <th className="py-3 pl-2 font-bold uppercase text-xs">Date</th>
+                                    <th className="py-3 font-bold uppercase text-xs">Amount</th>
+                                    <th className="py-3 font-bold uppercase text-xs">Status</th>
+                                    <th className="py-3 pr-2 font-bold uppercase text-xs text-right">Invoice</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+                                {[1,2].map((i) => (
+                                    <tr key={i} className="group hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                        <td className="py-4 pl-2 text-gray-900 dark:text-white font-medium">Oct 01, 2023</td>
+                                        <td className="py-4 text-gray-900 dark:text-white font-mono">$29.00</td>
+                                        <td className="py-4"><span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2 py-1 rounded uppercase tracking-wider border border-emerald-200 dark:border-emerald-500/20">Paid</span></td>
+                                        <td className="py-4 pr-2 text-right"><button className="inline-flex items-center gap-1.5 justify-end text-gray-500 hover:text-gray-900 dark:hover:text-white text-xs font-bold transition-colors"><Download size={14} /> PDF</button></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+             </div>
+          )}
+
+          {/* Payments Tab */}
+          {activeTab === 'payments' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {/* Currency Selector */}
+              <div className="bg-white dark:bg-[#09090b] rounded-2xl border border-gray-200 dark:border-white/10 p-6 md:p-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                 <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Store Currency</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Primary currency for pricing and analytics.</p>
+                 </div>
+                 <div className="relative group min-w-[200px]">
+                    <select value={localSettings.currency} onChange={(e) => updateSetting('currency', e.target.value)} className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-[#121214] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white font-bold cursor-pointer appearance-none outline-none focus:border-[#f97316]">
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="MAD">MAD (DH)</option>
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                 </div>
+              </div>
+
+              {/* Stripe Card */}
+              <div className={`bg-white dark:bg-[#09090b] rounded-2xl border transition-all duration-300 overflow-hidden shadow-sm ${localSettings.stripeEnabled ? 'border-[#635BFF] ring-1 ring-[#635BFF]/30' : 'border-gray-200 dark:border-white/10'}`}>
+                <div className="p-6 md:p-8 flex justify-between items-start bg-gradient-to-b from-[#635BFF]/5 to-transparent">
+                  <div className="flex items-center gap-5">
+                    <div className="p-3.5 bg-[#635BFF] text-white rounded-2xl shadow-lg shadow-[#635BFF]/30"><CreditCard size={32} /></div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                          Stripe 
+                          {localSettings.stripeEnabled && <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#635BFF]/10 text-[#635BFF] border border-[#635BFF]/20 text-[10px] font-bold uppercase tracking-wider"><CheckCircle2 size={12} /> Connected</span>}
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Accept credit cards, Apple Pay, and Google Pay.</p>
+                    </div>
+                  </div>
+                  <button onClick={() => updateSetting('stripeEnabled', !localSettings.stripeEnabled)} className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${localSettings.stripeEnabled ? 'bg-[#635BFF]' : 'bg-gray-200 dark:bg-[#1a1a1a]'}`}>
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${localSettings.stripeEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                {localSettings.stripeEnabled && (
+                  <div className="px-6 md:px-8 pb-8 pt-2 animate-in slide-in-from-top-2 fade-in">
+                    <div className="p-6 bg-gray-50 dark:bg-[#121214] rounded-xl border border-gray-200 dark:border-white/10 space-y-5">
+                        <div className="grid grid-cols-1 gap-5">
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Publishable Key</label>
+                                <div className="relative">
+                                    <input type="text" value={localSettings.stripePublishableKey} onChange={(e) => updateSetting('stripePublishableKey', e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:border-[#635BFF] outline-none font-mono text-xs" placeholder="pk_test_..." />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Secret Key</label>
+                                <div className="relative">
+                                    <input type={showStripeKey ? "text" : "password"} value={localSettings.stripeSecretKey} onChange={(e) => updateSetting('stripeSecretKey', e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:border-[#635BFF] outline-none font-mono text-xs pr-10" placeholder="sk_test_..." />
+                                    <button onClick={() => setShowStripeKey(!showStripeKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#635BFF] transition-colors">{showStripeKey ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-3 pt-2">
+                            <div className="flex justify-end">
+                                <button onClick={verifyStripeConnection} disabled={isVerifyingStripe || !localSettings.stripeSecretKey} className="flex items-center gap-2 text-xs font-bold bg-[#635BFF]/10 text-[#635BFF] px-4 py-2 rounded-lg hover:bg-[#635BFF]/20 disabled:opacity-50 transition-colors">
+                                    {isVerifyingStripe ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />} {isVerifyingStripe ? 'Verifying...' : 'Test Connection'}
+                                </button>
+                            </div>
+                            {stripeVerificationResult === 'success' && <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2 text-xs text-green-600 dark:text-green-400 font-bold"><CheckCircle2 size={14} /> Connected: {stripeConnectionDetails?.mode}</div>}
+                            {stripeVerificationResult === 'error' && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-xs text-red-600 dark:text-red-400 font-bold"><XCircle size={14} /> {stripeErrorMessage}</div>}
+                        </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Crypto */}
+              <div className={`bg-white dark:bg-[#09090b] rounded-2xl border transition-all duration-300 overflow-hidden shadow-sm ${localSettings.cryptoEnabled ? 'border-orange-500 ring-1 ring-orange-500/30' : 'border-gray-200 dark:border-white/10'}`}>
+                <div className="p-6 md:p-8 flex justify-between items-start bg-gradient-to-b from-orange-500/5 to-transparent">
+                  <div className="flex items-center gap-5">
+                    <div className="p-3.5 bg-orange-500 text-white rounded-2xl shadow-lg shadow-orange-500/30"><Bitcoin size={32} /></div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                          Crypto 
+                          {localSettings.cryptoEnabled && <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 text-[10px] font-bold uppercase tracking-wider"><CheckCircle2 size={12} /> Active</span>}
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Accept Bitcoin, Ethereum, and USDT.</p>
+                    </div>
+                  </div>
+                  <button onClick={() => updateSetting('cryptoEnabled', !localSettings.cryptoEnabled)} className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${localSettings.cryptoEnabled ? 'bg-orange-500' : 'bg-gray-200 dark:bg-[#1a1a1a]'}`}>
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${localSettings.cryptoEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                {localSettings.cryptoEnabled && (
+                  <div className="px-6 md:px-8 pb-8 pt-2 animate-in slide-in-from-top-2 fade-in">
+                    <div className="p-6 bg-gray-50 dark:bg-[#121214] rounded-xl border border-gray-200 dark:border-white/10 space-y-5">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Wallet Address</label>
+                            <input type="text" value={localSettings.cryptoWalletAddress || ''} onChange={(e) => updateSetting('cryptoWalletAddress', e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:border-orange-500 outline-none font-mono text-xs" placeholder="0x..." />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Supported Coins</label>
+                            <div className="flex gap-3">
+                                {['BTC', 'ETH', 'USDT'].map(coin => (
+                                    <button 
+                                        key={coin}
+                                        onClick={() => toggleCryptoOption(coin)}
+                                        className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${localSettings.cryptoOptions?.includes(coin) ? 'bg-orange-500/10 border-orange-500 text-orange-600 dark:text-orange-400' : 'bg-white dark:bg-[#09090b] border-gray-200 dark:border-white/10 text-gray-500 hover:border-gray-300 dark:hover:border-white/20'}`}
+                                    >
+                                        {coin}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Bank Transfer */}
+              <div className={`bg-white dark:bg-[#09090b] rounded-2xl border transition-all duration-300 overflow-hidden shadow-sm ${localSettings.bankTransferEnabled ? 'border-blue-500 ring-1 ring-blue-500/30' : 'border-gray-200 dark:border-white/10'}`}>
+                <div className="p-6 md:p-8 flex justify-between items-start bg-gradient-to-b from-blue-500/5 to-transparent">
+                  <div className="flex items-center gap-5">
+                    <div className="p-3.5 bg-blue-500 text-white rounded-2xl shadow-lg shadow-blue-500/30"><Landmark size={32} /></div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                          Bank Transfer
+                          {localSettings.bankTransferEnabled && <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-[10px] font-bold uppercase tracking-wider"><CheckCircle2 size={12} /> Active</span>}
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manual wire transfers and invoices.</p>
+                    </div>
+                  </div>
+                  <button onClick={() => updateSetting('bankTransferEnabled', !localSettings.bankTransferEnabled)} className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${localSettings.bankTransferEnabled ? 'bg-blue-500' : 'bg-gray-200 dark:bg-[#1a1a1a]'}`}>
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${localSettings.bankTransferEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                {localSettings.bankTransferEnabled && (
+                  <div className="px-6 md:px-8 pb-8 pt-2 animate-in slide-in-from-top-2 fade-in">
+                    <div className="p-6 bg-gray-50 dark:bg-[#121214] rounded-xl border border-gray-200 dark:border-white/10 space-y-5">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Account Details</label>
+                            <textarea rows={3} value={localSettings.bankTransferDetails || ''} onChange={(e) => updateSetting('bankTransferDetails', e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:border-blue-500 outline-none text-sm resize-none" placeholder="IBAN: ..." />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Instructions</label>
+                            <textarea rows={2} value={localSettings.bankTransferInstructions || ''} onChange={(e) => updateSetting('bankTransferInstructions', e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:border-blue-500 outline-none text-sm resize-none" placeholder="Please include your Order ID..." />
+                        </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Security Tab */}
+          {activeTab === 'security' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-white dark:bg-[#09090b] rounded-2xl border border-gray-200 dark:border-white/10 p-6 md:p-8 shadow-sm">
+                  <div className="flex items-center gap-3 mb-8">
+                      <div className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg"><Shield size={24} /></div>
+                      <div><h3 className="text-xl font-bold text-gray-900 dark:text-white">Security</h3><p className="text-sm text-gray-500 dark:text-gray-400">Protect your account and access.</p></div>
+                  </div>
+
+                  <div className="space-y-6">
+                      <div className="flex items-center justify-between p-5 bg-gray-50 dark:bg-[#121214] rounded-xl border border-gray-100 dark:border-white/5">
+                          <div className="flex items-center gap-4">
+                              <div className="p-2 bg-white dark:bg-[#09090b] rounded-lg text-gray-500 shadow-sm"><Smartphone size={20} /></div>
+                              <div>
+                                  <h4 className="font-bold text-gray-900 dark:text-white text-sm">Two-Factor Authentication</h4>
+                                  <p className="text-xs text-gray-500 mt-0.5">Secure your account with 2FA.</p>
+                              </div>
+                          </div>
+                          <button onClick={() => updateSetting('twoFactorEnabled', !localSettings.twoFactorEnabled)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${localSettings.twoFactorEnabled ? 'bg-[#f97316]' : 'bg-gray-200 dark:bg-[#222]'}`}>
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${localSettings.twoFactorEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
+                      </div>
+
+                      <div className="flex items-center justify-between p-5 bg-gray-50 dark:bg-[#121214] rounded-xl border border-gray-100 dark:border-white/5">
+                          <div className="flex items-center gap-4">
+                              <div className="p-2 bg-white dark:bg-[#09090b] rounded-lg text-gray-500 shadow-sm"><Key size={20} /></div>
+                              <div>
+                                  <h4 className="font-bold text-gray-900 dark:text-white text-sm">Password</h4>
+                                  <p className="text-xs text-gray-500 mt-0.5">Last changed 30 days ago.</p>
+                              </div>
+                          </div>
+                          <button className="px-4 py-2 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#222] transition-colors text-gray-700 dark:text-gray-300">Change</button>
+                      </div>
+
+                      <div>
+                          <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4 pl-1">Active Sessions</h4>
+                          <div className="space-y-3">
+                              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-[#121214] transition-colors group">
+                                  <div className="flex items-center gap-3">
+                                      <Monitor size={18} className="text-green-500" />
+                                      <div>
+                                          <p className="text-sm font-bold text-gray-900 dark:text-white">Macbook Pro <span className="font-normal text-gray-500">(This device)</span></p>
+                                          <p className="text-xs text-gray-500">Casablanca, MA • Chrome</p>
+                                      </div>
+                                  </div>
+                                  <span className="text-[10px] font-bold text-green-600 bg-green-100 dark:bg-green-500/10 px-2 py-1 rounded border border-green-200 dark:border-green-500/20">Active</span>
+                              </div>
+                              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-[#121214] transition-colors group opacity-70 hover:opacity-100">
+                                  <div className="flex items-center gap-3">
+                                      <Smartphone size={18} className="text-gray-400" />
+                                      <div>
+                                          <p className="text-sm font-bold text-gray-900 dark:text-white">iPhone 14 Pro</p>
+                                          <p className="text-xs text-gray-500">Paris, FR • Safari • 2h ago</p>
+                                      </div>
+                                  </div>
+                                  <button className="text-xs font-bold text-red-500 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">Revoke</button>
+                              </div>
+                          </div>
+                          <div className="mt-6 border-t border-gray-100 dark:border-white/5 pt-6">
+                              <button className="text-sm font-bold text-red-500 hover:text-red-600 flex items-center gap-2">
+                                  <LogOut size={16} /> Log out all other devices
+                              </button>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+            </div>
+          )}
+
+          {/* Portal Tab */}
+          {activeTab === 'portal' && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="bg-white dark:bg-[#09090b] rounded-2xl border border-gray-200 dark:border-white/10 p-6 md:p-8 shadow-sm">
+                      <div className="flex justify-between items-start mb-8">
+                           <div className="flex items-center gap-3">
+                               <div className="p-2 bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-lg"><Layout size={24} /></div>
+                               <div><h3 className="text-xl font-bold text-gray-900 dark:text-white">Customer Portal</h3><p className="text-sm text-gray-500 dark:text-gray-400">Configure what customers can do in their account.</p></div>
+                           </div>
+                           <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-white/10 rounded-lg text-sm font-bold hover:bg-gray-50 dark:hover:bg-[#121214] transition-colors text-gray-700 dark:text-gray-300">
+                               Preview <ChevronRight size={14} />
+                           </button>
+                      </div>
+
+                      <div className="space-y-4">
+                           {[
+                               { label: 'Allow Cancellations', desc: 'Customers can cancel their own subscriptions.', key: 'portalAllowCancellation' },
+                               { label: 'Allow Plan Switching', desc: 'Customers can upgrade or downgrade.', key: 'portalAllowPlanChange' },
+                               { label: 'Payment Method Updates', desc: 'Allow customers to change their card details.', key: 'portalAllowPaymentUpdate' },
+                               { label: 'Billing History', desc: 'Show past invoices and receipts.', key: 'portalShowHistory' },
+                           ].map((item, idx) => (
+                               <div key={idx} className="p-5 bg-gray-50 dark:bg-[#121214] rounded-xl border border-gray-100 dark:border-white/5 flex justify-between items-center group hover:border-gray-200 dark:hover:border-white/10 transition-colors">
+                                   <div>
+                                       <p className="text-sm font-bold text-gray-900 dark:text-white">{item.label}</p>
+                                       <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
+                                   </div>
+                                   <button 
+                                       onClick={() => updateSetting(item.key as any, !localSettings[item.key as keyof typeof settings])}
+                                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${localSettings[item.key as keyof typeof settings] ? 'bg-[#f97316]' : 'bg-gray-200 dark:bg-[#222]'}`}
+                                   >
+                                       <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${localSettings[item.key as keyof typeof settings] ? 'translate-x-6' : 'translate-x-1'}`} />
+                                   </button>
+                               </div>
+                           ))}
+                      </div>
+                  </div>
+              </div>
+          )}
+
+          {activeTab === 'domains' && <DomainsPage />}
+          
+          {activeTab === 'marketing' && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="flex bg-gray-100 dark:bg-[#121214] p-1 rounded-xl w-fit border border-gray-200 dark:border-white/5">
+                      <button 
+                         onClick={() => setMarketingSubTab('email')}
+                         className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${marketingSubTab === 'email' ? 'bg-white dark:bg-[#09090b] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                      >
+                         Email Marketing
+                      </button>
+                      <button 
+                         onClick={() => setMarketingSubTab('affiliates')}
+                         className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${marketingSubTab === 'affiliates' ? 'bg-white dark:bg-[#09090b] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                      >
+                         Affiliates
+                      </button>
+                  </div>
+                  {marketingSubTab === 'email' ? <EmailMarketingPage /> : <AffiliatesPage />}
+              </div>
+          )}
+
+          {activeTab === 'discounts' && <DiscountsPage />}
+
+          {activeTab === 'apps' && <AppsPage />}
+
+          {activeTab === 'updates' && (
+             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="bg-white dark:bg-[#09090b] rounded-2xl border border-gray-200 dark:border-white/10 p-6 md:p-8 shadow-sm">
+                    <div className="flex items-center gap-3 mb-10">
+                        <div className="p-2 bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-lg"><Sparkles size={24} /></div>
+                        <div><h3 className="text-xl font-bold text-gray-900 dark:text-white">What's New</h3><p className="text-sm text-gray-500 dark:text-gray-400">Latest features and improvements.</p></div>
+                    </div>
+                    
+                    <div className="space-y-10 relative before:absolute before:left-[19px] before:top-2 before:bottom-0 before:w-px before:bg-gray-200 dark:before:bg-white/10">
+                        <div className="relative pl-12 group">
+                            <div className="absolute left-0 top-1 w-10 h-10 rounded-full bg-white dark:bg-[#09090b] flex items-center justify-center border border-gray-200 dark:border-white/10 z-10 shadow-sm group-hover:border-[#f97316] group-hover:text-[#f97316] transition-colors text-gray-400"><Zap size={18} /></div>
+                            <h4 className="text-base font-bold text-gray-900 dark:text-white">AI Copywriting & Insights</h4>
+                            <p className="text-xs text-gray-500 mb-3 font-mono mt-1">October 24, 2023</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed bg-gray-50 dark:bg-[#121214] p-4 rounded-xl border border-gray-100 dark:border-white/5">
+                                Launched AI-powered descriptions for products and automated business insights on the dashboard. Just click the magic wand icon when editing a product!
+                            </p>
+                        </div>
+                        <div className="relative pl-12 group">
+                            <div className="absolute left-0 top-1 w-10 h-10 rounded-full bg-white dark:bg-[#09090b] flex items-center justify-center border border-gray-200 dark:border-white/10 z-10 shadow-sm group-hover:border-[#f97316] group-hover:text-[#f97316] transition-colors text-gray-400"><Wallet size={18} /></div>
+                            <h4 className="text-base font-bold text-gray-900 dark:text-white">Crypto Payments Support</h4>
+                            <p className="text-xs text-gray-500 mb-3 font-mono mt-1">October 10, 2023</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed bg-gray-50 dark:bg-[#121214] p-4 rounded-xl border border-gray-100 dark:border-white/5">
+                                You can now accept Bitcoin, Ethereum, and USDT directly through your checkout pages. Configure your wallet address in Settings {'>'} Payments.
+                            </p>
+                        </div>
+                        <div className="relative pl-12 group">
+                            <div className="absolute left-0 top-1 w-10 h-10 rounded-full bg-white dark:bg-[#09090b] flex items-center justify-center border border-gray-200 dark:border-white/10 z-10 shadow-sm group-hover:border-[#f97316] group-hover:text-[#f97316] transition-colors text-gray-400"><Globe size={18} /></div>
+                            <h4 className="text-base font-bold text-gray-900 dark:text-white">Ghost Links</h4>
+                            <p className="text-xs text-gray-500 mb-3 font-mono mt-1">September 28, 2023</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed bg-gray-50 dark:bg-[#121214] p-4 rounded-xl border border-gray-100 dark:border-white/5">
+                                Create stealth redirect links for your ads and social media campaigns. Track clicks, device types, and locations in real-time.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+             </div>
           )}
 
         </div>
