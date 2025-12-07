@@ -31,7 +31,9 @@ import {
   Grid,
   Tags,
   Puzzle,
-  FileText
+  FileText,
+  Megaphone,
+  Code
 } from 'lucide-react';
 import DashboardHome from './components/DashboardHome';
 import AnalyticsPage from './components/AnalyticsPage';
@@ -48,6 +50,8 @@ import GhostLinkPage from './components/GhostLinkPage';
 import InvoicesPage from './components/InvoicesPage';
 import AppsPage from './components/AppsPage';
 import DiscountsPage from './components/DiscountsPage';
+import AffiliatesPage from './components/AffiliatesPage';
+import DevelopersPage from './components/DevelopersPage';
 import HomePage from './components/HomePage';
 import LoginPage from './components/LoginPage';
 import { AppContext, UserProfile } from './AppContext'; 
@@ -230,6 +234,8 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
       items: [
         { path: '/tools/ghost-links', label: 'Ghost Links', icon: Ghost },
         { path: '/tools/invoices', label: 'Invoices', icon: FileText },
+        { path: '/affiliates', label: 'Affiliates', icon: Megaphone },
+        { path: '/developers', label: 'Developers', icon: Code },
       ]
     },
     {
@@ -915,6 +921,8 @@ export default function App() {
                   <Route path="/apps" element={<AppsPage />} />
                   <Route path="/tools/ghost-links" element={<GhostLinkPage />} />
                   <Route path="/tools/invoices" element={<InvoicesPage />} />
+                  <Route path="/affiliates" element={<AffiliatesPage />} />
+                  <Route path="/developers" element={<DevelopersPage />} />
                   <Route path="/help" element={<HelpCenterPage />} />
 
                   {/* Fallback for logged in users */}
