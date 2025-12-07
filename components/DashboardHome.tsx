@@ -506,34 +506,15 @@ const DashboardHome = () => {
 
       {/* Live Order Notification */}
       {notification && (
-        <div className={`fixed bottom-6 left-6 z-50 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] ${isNotificationVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-            <div className="bg-white/90 dark:bg-[#111111]/90 backdrop-blur-xl border border-gray-200/50 dark:border-gray-800/50 rounded-2xl p-4 shadow-2xl shadow-black/10 dark:shadow-black/50 flex items-center gap-4 max-w-sm w-full border-l-4 border-l-[#f97316]">
-                <div className="relative shrink-0">
-                    <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                        <img src={notification.image} alt="" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-0.5 border-2 border-white dark:border-[#111111]">
-                        <ShoppingBag size={10} className="text-white" fill="currentColor" />
-                    </div>
-                </div>
-                <div className="flex-1 min-w-0 pr-6">
-                    <div className="flex items-baseline justify-between">
-                        <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate">{notification.name}</h4>
-                        <span className="text-[10px] text-gray-400 font-medium">Just now</span>
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
-                        Purchased <span className="text-gray-700 dark:text-gray-300 font-medium">{notification.product}</span>
-                    </p>
-                    <p className="text-xs font-bold text-[#f97316] mt-1">
-                        ${notification.amount} <span className="text-gray-300 dark:text-gray-700 font-normal mx-1">•</span> <span className="text-gray-400 font-normal">{notification.location}</span>
+        <div className={`fixed bottom-6 right-6 z-50 transition-all duration-500 ease-out ${isNotificationVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}>
+            <div className="bg-[#111111] border border-gray-800/60 rounded-xl p-4 shadow-2xl w-80 flex items-start gap-3 backdrop-blur-md">
+                <div className="text-xl">🎉</div>
+                <div>
+                    <h4 className="text-sm font-bold text-white mb-0.5">New Sale!</h4>
+                    <p className="text-xs text-gray-400 leading-snug">
+                        <span className="text-gray-200 font-medium">{notification.name}</span> purchased <span className="text-gray-200 font-medium">{notification.product}</span>
                     </p>
                 </div>
-                <button 
-                    onClick={() => setIsNotificationVisible(false)} 
-                    className="absolute top-2 right-2 text-gray-300 hover:text-gray-500 dark:hover:text-gray-200 transition-colors"
-                >
-                    <X size={14} />
-                </button>
             </div>
         </div>
       )}
