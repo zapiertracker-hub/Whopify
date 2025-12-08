@@ -81,6 +81,9 @@ const defaultSettings: StoreSettings = {
   stripePublishableKey: '',
   stripeSecretKey: '',
   stripeSigningSecret: '',
+  
+  stripeAccounts: [],
+  activeStripeAccountId: undefined,
 
   manualPaymentEnabled: false,
   manualPaymentLabel: 'Manual Payment',
@@ -694,6 +697,8 @@ export default function App() {
             if (setRes.ok && checkRes.ok) {
                 const setData = await setRes.json();
                 const checkData = await checkRes.json();
+                // Ensure array exists for backward compat
+                if (!setData.stripeAccounts) setData.stripeAccounts = [];
                 setSettings(setData);
                 setCheckouts(checkData);
                 setIsBetaMode(false);
@@ -709,7 +714,11 @@ export default function App() {
             const localCheckouts = localStorage.getItem('whopify_checkouts');
             const localCoupons = localStorage.getItem('whopify_coupons');
 
-            if (localSettings) setSettings(JSON.parse(localSettings));
+            if (localSettings) {
+                const parsed = JSON.parse(localSettings);
+                if (!parsed.stripeAccounts) parsed.stripeAccounts = [];
+                setSettings(parsed);
+            }
             if (localCheckouts) setCheckouts(JSON.parse(localCheckouts));
             if (localCoupons) setCoupons(JSON.parse(localCoupons));
         }

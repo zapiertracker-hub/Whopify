@@ -19,10 +19,34 @@ app.use(express.json());
 const DB_FILE = path.resolve('local_db.json');
 
 const loadDb = () => {
+  const defaultDb = { 
+    checkouts: [], 
+    orders: [], 
+    customers: [], 
+    settings: { 
+      currency: 'USD', 
+      stripeEnabled: false,
+      stripePublishableKey: '',
+      stripeSecretKey: '',
+      stripeAccounts: [],
+      activeStripeAccountId: undefined
+    } 
+  };
+
   if (!fs.existsSync(DB_FILE)) {
-    return { checkouts: [], orders: [], customers: [], settings: { currency: 'USD', stripeEnabled: false } };
+    return defaultDb;
   }
-  return JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+
+  try {
+    const content = fs.readFileSync(DB_FILE, 'utf-8');
+    if (!content.trim()) return defaultDb;
+    const parsed = JSON.parse(content);
+    // Merge with default to ensure all root keys exist
+    return { ...defaultDb, ...parsed };
+  } catch (e) {
+    console.warn("Failed to parse local_db.json, using default DB.", e);
+    return defaultDb;
+  }
 };
 
 const saveDb = (data: any) => {
@@ -205,7 +229,8 @@ app.post("/api/create-payment-intent", async (req, res) => {
       receipt_email: customerEmail,
       metadata: {
         checkout_id: checkoutId,
-        upsells_count: Array.isArray(selectedUpsellIds) ? selectedUpsellIds.length : 0
+        // Stripe requires metadata values to be strings
+        upsells_count: (Array.isArray(selectedUpsellIds) ? selectedUpsellIds.length : 0).toString()
       },
     });
 
@@ -353,9 +378,7 @@ app.post('/api/verify-connection', async (req, res) => {
     if (!key) return res.status(400).json({ status: 'error', message: 'No key provided' });
 
     try {
-        // Simple check: create instance and check basic format. 
-        // Real verification would ideally make a lightweight API call (like listing 1 customer or retrieving account).
-        if (key.startsWith('sk_')) {
+        if (key.startsWith('sk_') || key.startsWith('rk_')) {
              res.json({ status: 'connected', mode: key.startsWith('sk_test') ? 'Test Mode' : 'Live Mode', currency: 'USD' });
         } else {
              throw new Error("Invalid key format");
@@ -377,7 +400,7 @@ app.get('/api/analytics', async (req, res) => {
     // Mock daily chart based on recent activity
     const daily = Array.from({length: 7}, (_, i) => ({
          name: new Date(Date.now() - (6-i)*86400000).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
-         revenue: orders.length > 0 ? totalRevenue / (orders.length > 7 ? orders.length : 7) : Math.floor(Math.random() * 500) // Rough distribution for demo
+         revenue: orders.length > 0 ? totalRevenue / (orders.length > 7 ? orders.length : 7) : Math.floor(Math.random() * 500)
     }));
 
     res.json({
@@ -416,4 +439,5 @@ app.get('/api/customers', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
+  console.log(`Database File: ${DB_FILE}`);
 });

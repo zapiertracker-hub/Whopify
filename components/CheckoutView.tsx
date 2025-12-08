@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useContext, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CheckoutPage, StoreSettings, PaymentMethod, OrderBump, Coupon } from '../types';
@@ -834,16 +836,29 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
   // Upsell State (Multiple)
   const [selectedUpsellIds, setSelectedUpsellIds] = useState<Set<string>>(new Set());
 
-  // Enabled Payment Methods Logic (Memoized to prevent effect triggers)
+  // Use the active account from settings if multiple are present, otherwise fallback to main keys
+  const getActiveStripeKey = () => {
+      // Logic: If active ID is set and found in accounts array, use it.
+      if (settings.activeStripeAccountId && settings.stripeAccounts && settings.stripeAccounts.length > 0) {
+          const active = settings.stripeAccounts.find((a: any) => a.id === settings.activeStripeAccountId);
+          if (active) return active.publishableKey;
+      }
+      // Fallback to top-level key (backward compatibility)
+      return settings.stripePublishableKey;
+  };
+
+  const activeStripeKey = getActiveStripeKey();
+
+  // Enabled Payment Methods Logic
   const enabledMethods = React.useMemo(() => config.paymentMethods.filter((m: PaymentMethod) => {
       switch (m) {
-          case 'stripe': return settings.stripeEnabled && (isDemo || (settings.stripePublishableKey && settings.stripePublishableKey.trim()));
+          case 'stripe': return settings.stripeEnabled && (isDemo || (activeStripeKey && activeStripeKey.trim()));
           case 'manual': return settings.manualPaymentEnabled;
           case 'bank_transfer': return settings.bankTransferEnabled;
           case 'crypto': return settings.cryptoEnabled;
           default: return false;
       }
-  }), [config.paymentMethods, settings, isDemo]);
+  }), [config.paymentMethods, settings, isDemo, activeStripeKey]);
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
 
@@ -932,17 +947,16 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
   };
 
   useEffect(() => {
-    setIsDemo(isPreview || (!settings.stripePublishableKey?.trim() && !settings.manualPaymentEnabled));
-  }, [isPreview, settings.stripePublishableKey, settings.manualPaymentEnabled]);
+    setIsDemo(isPreview || (!activeStripeKey?.trim() && !settings.manualPaymentEnabled));
+  }, [isPreview, activeStripeKey, settings.manualPaymentEnabled]);
 
   useEffect(() => {
-    const key = settings.stripePublishableKey?.trim();
-    if (!isDemo && settings.stripeEnabled && key && !key.includes('...')) {
-      setStripePromise(loadStripe(key));
+    if (!isDemo && settings.stripeEnabled && activeStripeKey && !activeStripeKey.includes('...')) {
+      setStripePromise(loadStripe(activeStripeKey));
     } else {
       setStripePromise(null);
     }
-  }, [settings.stripeEnabled, settings.stripePublishableKey, isDemo]);
+  }, [settings.stripeEnabled, activeStripeKey, isDemo]);
 
   const firstProduct = config.products && config.products.length > 0 ? config.products[0] : null;
   const currency = (firstProduct?.currency || config.currency || settings.currency || 'USD').toUpperCase();
@@ -1253,6 +1267,9 @@ const CheckoutView = () => {
            setPublicSettings({
                stripeEnabled: data.stripeEnabled,
                stripePublishableKey: data.stripePublishableKey,
+               // Pass active accounts metadata if needed on public view (though mostly backend handled)
+               stripeAccounts: data.stripeAccounts || [],
+               activeStripeAccountId: data.activeStripeAccountId,
                currency: data.currency,
                whatsappEnabled: data.whatsappEnabled,
                whatsappNumber: data.whatsappNumber,
@@ -1271,9 +1288,12 @@ const CheckoutView = () => {
            const found = checkouts.find(c => c.id === checkoutId);
            if (found) {
                setConfig(found);
+               // Local Fallback
                setPublicSettings({
-                   stripeEnabled: false,
-                   stripePublishableKey: '',
+                   stripeEnabled: settings.stripeEnabled,
+                   stripePublishableKey: settings.stripePublishableKey,
+                   stripeAccounts: settings.stripeAccounts || [],
+                   activeStripeAccountId: settings.activeStripeAccountId,
                    currency: settings.currency || 'USD',
                    whatsappEnabled: settings.whatsappEnabled,
                    whatsappNumber: settings.whatsappNumber,

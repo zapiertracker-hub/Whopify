@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useContext, useEffect } from 'react';
 import { AppContext } from '../AppContext';
 import { useSearchParams } from 'react-router-dom';
@@ -7,12 +9,13 @@ import {
   ShieldCheck, Store, Loader2, RefreshCw, CheckCircle2, XCircle, AlertCircle,
   Shield, Key, Smartphone, Monitor, User, Wallet, Sparkles, UserPlus, 
   Download, Zap, Layout, Trash2, Banknote, Landmark, Bitcoin, Upload,
-  ChevronRight, Megaphone, Tags, Grid, LogOut, ChevronDown, Lock
+  ChevronRight, Megaphone, Tags, Grid, LogOut, ChevronDown, Lock, Plus, Activity
 } from 'lucide-react';
 import EmailMarketingPage from './EmailMarketingPage';
 import AffiliatesPage from './AffiliatesPage';
 import AppsPage from './AppsPage';
 import DomainsPage from './DomainsPage';
+import { StripeAccount } from '../types';
 
 type Tab = 'general' | 'account' | 'security' | 'billing' | 'payments' | 'portal' | 'domains' | 'marketing' | 'apps' | 'updates';
 
@@ -28,11 +31,17 @@ const SettingsPage = () => {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [marketingSubTab, setMarketingSubTab] = useState<'email' | 'affiliates'>('email');
   const [localSettings, setLocalSettings] = useState(settings);
-  const [showStripeKey, setShowStripeKey] = useState(false);
+  const [showStripeKey, setShowStripeKey] = useState<{[key: string]: boolean}>({});
   const [isVerifyingStripe, setIsVerifyingStripe] = useState(false);
   const [stripeVerificationResult, setStripeVerificationResult] = useState<'success' | 'error' | null>(null);
   const [stripeConnectionDetails, setStripeConnectionDetails] = useState<{ mode: string, currency: string } | null>(null);
   const [stripeErrorMessage, setStripeErrorMessage] = useState<string | null>(null);
+
+  // New Stripe Account State
+  const [newStripeLabel, setNewStripeLabel] = useState('');
+  const [newStripePK, setNewStripePK] = useState('');
+  const [newStripeSK, setNewStripeSK] = useState('');
+  const [isAddingStripe, setIsAddingStripe] = useState(false);
 
   // Profile Edit State
   const [profileName, setProfileName] = useState(user.name);
@@ -109,11 +118,6 @@ const SettingsPage = () => {
 
   const updateSetting = (key: keyof typeof settings, value: any) => {
     setLocalSettings(prev => ({ ...prev, [key]: value }));
-    if (key === 'stripeSecretKey' || key === 'stripePublishableKey') {
-        setStripeVerificationResult(null);
-        setStripeConnectionDetails(null);
-        setStripeErrorMessage(null);
-    }
   };
 
   const toggleCryptoOption = (coin: string) => {
@@ -127,8 +131,101 @@ const SettingsPage = () => {
     updateSetting('cryptoOptions', updated);
   };
 
-  const verifyStripeConnection = async () => {
-    const key = localSettings.stripeSecretKey?.trim();
+  // --- Multi-Stripe Logic ---
+
+  const handleAddStripeAccount = () => {
+      if (!newStripeLabel || !newStripePK || !newStripeSK) {
+          alert("Please fill in all Stripe account fields.");
+          return;
+      }
+      
+      const newAccount: StripeAccount = {
+          id: Date.now().toString(),
+          label: newStripeLabel,
+          publishableKey: newStripePK,
+          secretKey: newStripeSK,
+          currentRevenue: 0
+      };
+
+      const currentAccounts = localSettings.stripeAccounts || [];
+      if (currentAccounts.length >= 5) {
+          alert("Maximum 5 Stripe accounts allowed.");
+          return;
+      }
+
+      const updatedAccounts = [...currentAccounts, newAccount];
+      
+      // If first account, make it active
+      const activeId = currentAccounts.length === 0 ? newAccount.id : localSettings.activeStripeAccountId;
+      const pubKey = currentAccounts.length === 0 ? newAccount.publishableKey : localSettings.stripePublishableKey;
+      const secKey = currentAccounts.length === 0 ? newAccount.secretKey : localSettings.stripeSecretKey;
+
+      setLocalSettings(prev => ({
+          ...prev,
+          stripeAccounts: updatedAccounts,
+          activeStripeAccountId: activeId,
+          stripePublishableKey: pubKey,
+          stripeSecretKey: secKey
+      }));
+
+      // Reset form
+      setNewStripeLabel('');
+      setNewStripePK('');
+      setNewStripeSK('');
+      setIsAddingStripe(false);
+  };
+
+  const handleRemoveStripeAccount = (id: string) => {
+      const updatedAccounts = (localSettings.stripeAccounts || []).filter(a => a.id !== id);
+      
+      // Handle active switch if removing active account
+      let nextActiveId = localSettings.activeStripeAccountId;
+      let nextPubKey = localSettings.stripePublishableKey;
+      let nextSecKey = localSettings.stripeSecretKey;
+
+      if (id === localSettings.activeStripeAccountId) {
+          if (updatedAccounts.length > 0) {
+              nextActiveId = updatedAccounts[0].id;
+              nextPubKey = updatedAccounts[0].publishableKey;
+              nextSecKey = updatedAccounts[0].secretKey;
+          } else {
+              nextActiveId = undefined;
+              nextPubKey = '';
+              nextSecKey = '';
+          }
+      }
+
+      setLocalSettings(prev => ({
+          ...prev,
+          stripeAccounts: updatedAccounts,
+          activeStripeAccountId: nextActiveId,
+          stripePublishableKey: nextPubKey,
+          stripeSecretKey: nextSecKey
+      }));
+  };
+
+  const handleSetActiveStripeAccount = (id: string) => {
+      const account = (localSettings.stripeAccounts || []).find(a => a.id === id);
+      if (account) {
+          setLocalSettings(prev => ({
+              ...prev,
+              activeStripeAccountId: id,
+              stripePublishableKey: account.publishableKey,
+              stripeSecretKey: account.secretKey
+          }));
+      }
+  };
+
+  const updateStripeLimit = (id: string, limit: string) => {
+      const numLimit = limit === '' ? undefined : parseFloat(limit);
+      const updatedAccounts = (localSettings.stripeAccounts || []).map(a => 
+          a.id === id ? { ...a, revenueLimit: numLimit } : a
+      );
+      setLocalSettings(prev => ({ ...prev, stripeAccounts: updatedAccounts }));
+  };
+
+  const verifyStripeConnection = async (secretKey: string) => {
+    const key = secretKey?.trim();
     if (!key) return;
     
     setIsVerifyingStripe(true);
@@ -476,15 +573,19 @@ const SettingsPage = () => {
                  </div>
               </div>
 
-              {/* Stripe Card */}
+              {/* Stripe Accounts Section */}
               <div className={`bg-white dark:bg-[#09090b] rounded-2xl border transition-all duration-300 overflow-hidden shadow-sm ${localSettings.stripeEnabled ? 'border-[#635BFF] ring-1 ring-[#635BFF]/30' : 'border-gray-200 dark:border-white/10'}`}>
                 <div className="p-6 md:p-8 flex justify-between items-start bg-gradient-to-b from-[#635BFF]/5 to-transparent">
                   <div className="flex items-center gap-5">
-                    <div className="p-3.5 bg-[#635BFF] text-white rounded-2xl shadow-lg shadow-[#635BFF]/30"><CreditCard size={32} /></div>
+                    <div className="p-3.5 bg-[#635BFF] text-white rounded-2xl shadow-lg shadow-[#635BFF]/30">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12.9297 12.8703C12.9297 11.2393 14.2863 10.669 16.3223 10.669C18.17 10.669 19.963 11.1037 21.4023 11.647V6.99967C19.8817 6.429 18.2517 6.18433 16.295 6.18433C11.3 6.18433 7.82167 8.875 7.82167 13.1423C7.82167 19.0123 16.0503 18.3873 16.0503 20.6973C16.0503 21.8387 14.9383 22.3823 13.2557 22.3823C11.1643 22.3823 9.20767 21.866 7.631 21.1593V26.0243C9.37033 26.7037 11.2457 27.0027 13.201 27.0027C18.6637 27.0027 21.9183 24.3667 21.9183 20.181C21.9183 14.229 12.9297 14.5823 12.9297 12.8703Z" fill="white"/>
+                        </svg>
+                    </div>
                     <div>
                       <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
                           Stripe 
-                          {localSettings.stripeEnabled && <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#635BFF]/10 text-[#635BFF] border border-[#635BFF]/20 text-[10px] font-bold uppercase tracking-wider"><CheckCircle2 size={12} /> Connected</span>}
+                          {localSettings.stripeEnabled && <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#635BFF]/10 text-[#635BFF] border border-[#635BFF]/20 text-[10px] font-bold uppercase tracking-wider"><CheckCircle2 size={12} /> Active</span>}
                       </h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Accept credit cards, Apple Pay, and Google Pay.</p>
                     </div>
@@ -493,34 +594,165 @@ const SettingsPage = () => {
                     <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${localSettings.stripeEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
                 </div>
+                
                 {localSettings.stripeEnabled && (
                   <div className="px-6 md:px-8 pb-8 pt-2 animate-in slide-in-from-top-2 fade-in">
-                    <div className="p-6 bg-gray-50 dark:bg-[#121214] rounded-xl border border-gray-200 dark:border-white/10 space-y-5">
-                        <div className="grid grid-cols-1 gap-5">
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Publishable Key</label>
-                                <div className="relative">
-                                    <input type="text" value={localSettings.stripePublishableKey} onChange={(e) => updateSetting('stripePublishableKey', e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:border-[#635BFF] outline-none font-mono text-xs" placeholder="pk_test_..." />
+                    
+                    {/* Add Account Form */}
+                    {isAddingStripe ? (
+                        <div className="mb-6 p-5 bg-gray-50 dark:bg-[#121214] rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+                            <h4 className="font-bold text-gray-900 dark:text-white text-sm mb-4">Connect New Account</h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Account Label</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="e.g. Main USA, Backup LLC" 
+                                        value={newStripeLabel} 
+                                        onChange={(e) => setNewStripeLabel(e.target.value)} 
+                                        className="w-full px-3 py-2 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-lg text-sm outline-none focus:border-[#635BFF]" 
+                                    />
                                 </div>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Secret Key</label>
-                                <div className="relative">
-                                    <input type={showStripeKey ? "text" : "password"} value={localSettings.stripeSecretKey} onChange={(e) => updateSetting('stripeSecretKey', e.target.value)} className="w-full px-4 py-3 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:border-[#635BFF] outline-none font-mono text-xs pr-10" placeholder="sk_test_..." />
-                                    <button onClick={() => setShowStripeKey(!showStripeKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#635BFF] transition-colors">{showStripeKey ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Publishable Key</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="pk_test_..." 
+                                        value={newStripePK} 
+                                        onChange={(e) => setNewStripePK(e.target.value)} 
+                                        className="w-full px-3 py-2 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-lg text-sm outline-none focus:border-[#635BFF] font-mono" 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Secret Key</label>
+                                    <input 
+                                        type="password" 
+                                        placeholder="sk_test_..." 
+                                        value={newStripeSK} 
+                                        onChange={(e) => setNewStripeSK(e.target.value)} 
+                                        className="w-full px-3 py-2 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-lg text-sm outline-none focus:border-[#635BFF] font-mono" 
+                                    />
+                                </div>
+                                <div className="flex gap-2 justify-end pt-2">
+                                    <button onClick={() => setIsAddingStripe(false)} className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">Cancel</button>
+                                    <button onClick={handleAddStripeAccount} className="px-4 py-2 bg-[#635BFF] text-white rounded-lg text-xs font-bold shadow-md hover:bg-[#5349e0] transition-colors">Add Account</button>
                                 </div>
                             </div>
                         </div>
-                        <div className="flex flex-col gap-3 pt-2">
-                            <div className="flex justify-end">
-                                <button onClick={verifyStripeConnection} disabled={isVerifyingStripe || !localSettings.stripeSecretKey} className="flex items-center gap-2 text-xs font-bold bg-[#635BFF]/10 text-[#635BFF] px-4 py-2 rounded-lg hover:bg-[#635BFF]/20 disabled:opacity-50 transition-colors">
-                                    {isVerifyingStripe ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />} {isVerifyingStripe ? 'Verifying...' : 'Test Connection'}
-                                </button>
-                            </div>
-                            {stripeVerificationResult === 'success' && <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2 text-xs text-green-600 dark:text-green-400 font-bold"><CheckCircle2 size={14} /> Connected: {stripeConnectionDetails?.mode}</div>}
-                            {stripeVerificationResult === 'error' && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-xs text-red-600 dark:text-red-400 font-bold"><XCircle size={14} /> {stripeErrorMessage}</div>}
+                    ) : (
+                        <div className="mb-6 flex justify-end">
+                            <button 
+                                onClick={() => setIsAddingStripe(true)} 
+                                disabled={(localSettings.stripeAccounts || []).length >= 5}
+                                className="flex items-center gap-2 text-xs font-bold text-[#635BFF] bg-[#635BFF]/10 px-3 py-2 rounded-lg hover:bg-[#635BFF]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Plus size={14} /> Add Account ({(localSettings.stripeAccounts || []).length}/5)
+                            </button>
                         </div>
+                    )}
+
+                    {/* Account List */}
+                    <div className="space-y-3">
+                        {(localSettings.stripeAccounts || []).map((account) => {
+                            const isActive = localSettings.activeStripeAccountId === account.id;
+                            const isShowingKey = showStripeKey[account.id];
+
+                            return (
+                                <div key={account.id} className={`p-4 rounded-xl border transition-all ${isActive ? 'bg-[#635BFF]/5 border-[#635BFF] shadow-sm' : 'bg-gray-50 dark:bg-[#121214] border-gray-200 dark:border-white/10'}`}>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-3 h-3 rounded-full ${isActive ? 'bg-[#635BFF] animate-pulse' : 'bg-gray-300 dark:bg-gray-700'}`}></div>
+                                            <h4 className="font-bold text-gray-900 dark:text-white text-sm">{account.label}</h4>
+                                            {isActive && <span className="text-[10px] font-bold text-[#635BFF] bg-[#635BFF]/10 px-2 py-0.5 rounded border border-[#635BFF]/20 uppercase">Active</span>}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {!isActive && (
+                                                <button 
+                                                    onClick={() => handleSetActiveStripeAccount(account.id)}
+                                                    className="text-xs font-bold text-gray-500 hover:text-[#635BFF] transition-colors"
+                                                >
+                                                    Set Active
+                                                </button>
+                                            )}
+                                            <button 
+                                                onClick={() => handleRemoveStripeAccount(account.id)}
+                                                className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                                title="Remove Account"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-2 mb-3">
+                                        <div className="flex items-center gap-2 text-xs font-mono text-gray-500 dark:text-gray-400 bg-white dark:bg-[#09090b] px-3 py-1.5 rounded border border-gray-200 dark:border-white/5 truncate">
+                                            <span className="text-gray-400 select-none">PK:</span> {account.publishableKey}
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs font-mono text-gray-500 dark:text-gray-400 bg-white dark:bg-[#09090b] px-3 py-1.5 rounded border border-gray-200 dark:border-white/5 truncate">
+                                            <div className="flex items-center gap-2 truncate">
+                                                <span className="text-gray-400 select-none">SK:</span> 
+                                                <span>{isShowingKey ? account.secretKey : '•'.repeat(24)}</span>
+                                            </div>
+                                            <button 
+                                                onClick={() => setShowStripeKey(prev => ({ ...prev, [account.id]: !prev[account.id] }))}
+                                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 ml-2"
+                                            >
+                                                {isShowingKey ? <EyeOff size={12} /> : <Eye size={12} />}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Test Connection Button */}
+                                    <div className="flex justify-end">
+                                        <button 
+                                            onClick={() => verifyStripeConnection(account.secretKey)} 
+                                            disabled={isVerifyingStripe} 
+                                            className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 hover:text-[#635BFF] transition-colors disabled:opacity-50"
+                                        >
+                                            {isVerifyingStripe ? <Loader2 className="animate-spin" size={10} /> : <RefreshCw size={10} />} Test Connection
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {(!localSettings.stripeAccounts || localSettings.stripeAccounts.length === 0) && !isAddingStripe && (
+                            <div className="text-center py-8 text-gray-500 text-xs">No accounts connected. Add one to start accepting payments.</div>
+                        )}
                     </div>
+
+                    {/* Payment Limits Section */}
+                    {(localSettings.stripeAccounts && localSettings.stripeAccounts.length > 0) && (
+                        <div className="mt-8 pt-6 border-t border-gray-100 dark:border-white/10">
+                            <h4 className="font-bold text-gray-900 dark:text-white text-sm mb-4 flex items-center gap-2">
+                                <Activity size={16} className="text-[#635BFF]" /> Payment Limits
+                            </h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Set revenue limits for each account to manage risk distribution.</p>
+                            
+                            <div className="space-y-4">
+                                {localSettings.stripeAccounts.map((account) => (
+                                    <div key={account.id} className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-[#121214] rounded-xl border border-gray-200 dark:border-white/5">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-bold text-gray-900 dark:text-white truncate">{account.label}</div>
+                                            <div className="text-xs text-gray-500">Current: ${(account.currentRevenue || 0).toLocaleString()}</div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs font-bold text-gray-500 uppercase">Limit: $</span>
+                                            <input 
+                                                type="number" 
+                                                placeholder="No Limit" 
+                                                value={account.revenueLimit === undefined ? '' : account.revenueLimit}
+                                                onChange={(e) => updateStripeLimit(account.id, e.target.value)}
+                                                className="w-24 px-2 py-1 bg-white dark:bg-[#09090b] border border-gray-300 dark:border-gray-700 rounded text-sm text-gray-900 dark:text-white focus:outline-none focus:border-[#635BFF]"
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {stripeVerificationResult === 'success' && <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2 text-xs text-green-600 dark:text-green-400 font-bold animate-in fade-in"><CheckCircle2 size={14} /> Connected: {stripeConnectionDetails?.mode}</div>}
+                    {stripeVerificationResult === 'error' && <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-xs text-red-600 dark:text-red-400 font-bold animate-in fade-in"><XCircle size={14} /> {stripeErrorMessage}</div>}
                   </div>
                 )}
               </div>

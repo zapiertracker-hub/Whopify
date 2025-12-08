@@ -111,6 +111,15 @@ export interface CheckoutPage {
   };
 }
 
+export interface StripeAccount {
+  id: string;
+  label: string;
+  publishableKey: string;
+  secretKey: string;
+  revenueLimit?: number; // 0 or undefined means unlimited
+  currentRevenue: number;
+}
+
 export interface StoreSettings {
   storeName: string;
   supportEmail: string;
@@ -125,9 +134,14 @@ export interface StoreSettings {
   bankTransferEnabled?: boolean;
 
   stripeTestMode: boolean;
+  // Legacy single key support (maintained for backward compatibility)
   stripePublishableKey: string;
   stripeSecretKey: string;
   stripeSigningSecret: string;
+
+  // New Multi-Stripe Support
+  stripeAccounts: StripeAccount[];
+  activeStripeAccountId?: string;
 
   // Manual Payment
   manualPaymentEnabled?: boolean;
