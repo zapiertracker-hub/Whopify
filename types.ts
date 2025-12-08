@@ -158,6 +158,10 @@ export interface StoreSettings {
   crispWebsiteId?: string;
   whatsappEnabled?: boolean;
   whatsappNumber?: string;
+  
+  // Google Sheets Integration
+  googleSheetsEnabled?: boolean;
+  googleSheetsUrl?: string; // Webhook URL or Sheet ID
 
   // Domains
   customDomain?: string;

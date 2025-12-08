@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, ReactNode, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { 
@@ -106,6 +107,10 @@ const defaultSettings: StoreSettings = {
   crispWebsiteId: '',
   whatsappEnabled: false,
   whatsappNumber: '',
+  
+  // Google Sheets Integration
+  googleSheetsEnabled: false,
+  googleSheetsUrl: '',
 
   // Security Defaults
   twoFactorEnabled: false

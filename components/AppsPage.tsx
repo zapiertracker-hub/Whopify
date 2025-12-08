@@ -1,14 +1,16 @@
 
+
 import React, { useContext, useState } from 'react';
 import { 
   BarChart2, MessageCircle, LifeBuoy, Share2, Gamepad2, ShoppingBag, 
   Bitcoin, CreditCard, Wallet, DollarSign, Plus, Check, Settings as SettingsIcon,
-  X, Save, Loader2, ChevronRight, LayoutDashboard, Facebook, Twitter, Youtube, Send
+  X, Save, Loader2, ChevronRight, LayoutDashboard, Facebook, Twitter, Youtube, Send,
+  FileSpreadsheet
 } from 'lucide-react';
 import { AppContext } from '../AppContext';
 import { useNavigate } from 'react-router-dom';
 
-type AppId = 'crisp' | 'whatsapp' | 'ga' | 'helpspace' | 'socials' | 'discord' | 'shopify' | 'crypto' | 'stripe' | 'paypal' | 'cashapp';
+type AppId = 'crisp' | 'whatsapp' | 'ga' | 'helpspace' | 'socials' | 'discord' | 'shopify' | 'crypto' | 'stripe' | 'paypal' | 'cashapp' | 'google_sheets';
 
 const AppsPage = () => {
   const { settings, saveSettings } = useContext(AppContext);
@@ -19,11 +21,19 @@ const AppsPage = () => {
   const [crispId, setCrispId] = useState(settings.crispWebsiteId || '');
   const [isCrispEnabled, setIsCrispEnabled] = useState(settings.crispEnabled || false);
 
+  // Google Sheets State
+  const [sheetUrl, setSheetUrl] = useState(settings.googleSheetsUrl || '');
+  const [isSheetsEnabled, setIsSheetsEnabled] = useState(settings.googleSheetsEnabled || false);
+
   const handleInstallClick = (appId: string) => {
       if (appId === 'crisp') {
           setCrispId(settings.crispWebsiteId || '');
           setIsCrispEnabled(settings.crispEnabled || false);
           setConfiguringApp('crisp');
+      } else if (appId === 'google_sheets') {
+          setSheetUrl(settings.googleSheetsUrl || '');
+          setIsSheetsEnabled(settings.googleSheetsEnabled || false);
+          setConfiguringApp('google_sheets');
       } else if (appId === 'stripe' || appId === 'paypal' || appId === 'crypto' || appId === 'cashapp') {
           // Redirect to payments settings for payment providers
           navigate('/settings?tab=payments');
@@ -41,10 +51,26 @@ const AppsPage = () => {
       setConfiguringApp(null);
   };
 
+  const handleSaveSheets = () => {
+      saveSettings({
+          ...settings,
+          googleSheetsEnabled: isSheetsEnabled,
+          googleSheetsUrl: sheetUrl
+      });
+      setConfiguringApp(null);
+  };
+
   const categories = [
     {
       title: "Third party apps",
       apps: [
+        { 
+            id: 'google_sheets', 
+            name: 'Google Sheets', 
+            description: "Automatically sync new orders and customer data to a Google Sheet in real-time.", 
+            icon: <div className="text-emerald-500"><FileSpreadsheet size={28} /></div>,
+            installed: settings.googleSheetsEnabled
+        },
         { 
             id: 'ga', 
             name: 'Google analytics', 
@@ -212,6 +238,62 @@ const AppsPage = () => {
                       </button>
                       <button 
                           onClick={handleSaveCrisp}
+                          className="flex-1 py-3 rounded-xl bg-[#f97316] text-white dark:text-black font-bold text-sm shadow-lg hover:bg-[#ea580c] transition-all active:scale-95 flex items-center justify-center gap-2"
+                      >
+                          <Save size={16} /> Save
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Configuration Modal for Google Sheets */}
+      {configuringApp === 'google_sheets' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+              <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-md shadow-2xl p-6">
+                  <div className="flex justify-between items-center mb-6">
+                      <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-lg">
+                              <FileSpreadsheet size={24} />
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Configure Google Sheets</h3>
+                      </div>
+                      <button onClick={() => setConfiguringApp(null)} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95"><X size={20}/></button>
+                  </div>
+
+                  <div className="space-y-6">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800">
+                          <span className="font-bold text-sm text-gray-900 dark:text-white">Enable Auto-Sync</span>
+                          <button 
+                             onClick={() => setIsSheetsEnabled(!isSheetsEnabled)}
+                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isSheetsEnabled ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}
+                          >
+                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ${isSheetsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
+                      </div>
+
+                      <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Webhook URL</label>
+                          <input 
+                              type="text" 
+                              value={sheetUrl}
+                              onChange={(e) => setSheetUrl(e.target.value)}
+                              placeholder="https://script.google.com/macros/s/..."
+                              className="w-full px-4 py-3 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] outline-none font-mono text-sm"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">Paste your Google Apps Script Webhook URL here.</p>
+                      </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-8">
+                      <button 
+                          onClick={() => setConfiguringApp(null)} 
+                          className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95"
+                      >
+                          Cancel
+                      </button>
+                      <button 
+                          onClick={handleSaveSheets}
                           className="flex-1 py-3 rounded-xl bg-[#f97316] text-white dark:text-black font-bold text-sm shadow-lg hover:bg-[#ea580c] transition-all active:scale-95 flex items-center justify-center gap-2"
                       >
                           <Save size={16} /> Save

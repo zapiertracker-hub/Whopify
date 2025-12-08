@@ -1,18 +1,21 @@
 
+
 import React, { useState, useContext, useEffect } from 'react';
-import { Search, Download, CheckCircle, Clock, XCircle, RefreshCw } from 'lucide-react';
+import { Search, Download, CheckCircle, Clock, XCircle, RefreshCw, FileSpreadsheet, Loader2, Check } from 'lucide-react';
 import { AppContext } from '../AppContext';
 import { useSearchParams } from 'react-router-dom';
 
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 
 const OrdersPage = () => {
-  const { ghostMode } = useContext(AppContext);
+  const { ghostMode, settings } = useContext(AppContext);
   const [filter, setFilter] = useState('all');
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState(false);
 
   // Update search if URL changes
   useEffect(() => {
@@ -45,6 +48,25 @@ const OrdersPage = () => {
     const interval = setInterval(fetchOrders, 30000); // Live refresh slower poll
     return () => clearInterval(interval);
   }, []);
+
+  const handleExport = () => {
+      setIsExporting(true);
+      setExportSuccess(false);
+      
+      // Simulate export delay
+      setTimeout(() => {
+          if (settings.googleSheetsEnabled) {
+              console.log("Syncing to Google Sheets at:", settings.googleSheetsUrl);
+              // In real app: POST to webhook
+          } else {
+              console.log("Generating CSV...");
+              // In real app: Generate CSV blob
+          }
+          setIsExporting(false);
+          setExportSuccess(true);
+          setTimeout(() => setExportSuccess(false), 2000);
+      }, 1500);
+  };
 
   const filteredOrders = orders.filter(order => {
     // Handling safe access if order structure varies slightly
@@ -84,8 +106,28 @@ const OrdersPage = () => {
            <button onClick={fetchOrders} className="p-2 rounded-lg border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors">
              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
            </button>
-           <button className="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-black dark:hover:text-white flex items-center gap-2 transition-colors shadow-sm">
-              <Download size={18} /> Export
+           <button 
+              onClick={handleExport}
+              disabled={isExporting}
+              className={`px-4 py-2 border border-gray-200 dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2 transition-colors shadow-sm ${exportSuccess ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-900/30' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white'}`}
+           >
+              {isExporting ? (
+                  <Loader2 size={18} className="animate-spin" />
+              ) : exportSuccess ? (
+                  <Check size={18} />
+              ) : settings.googleSheetsEnabled ? (
+                  <FileSpreadsheet size={18} className="text-emerald-500" />
+              ) : (
+                  <Download size={18} />
+              )}
+              
+              {isExporting 
+                  ? 'Processing...' 
+                  : exportSuccess 
+                      ? 'Done!' 
+                      : settings.googleSheetsEnabled 
+                          ? 'Sync to Sheets' 
+                          : 'Export CSV'}
            </button>
         </div>
       </div>
