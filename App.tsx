@@ -279,7 +279,7 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
             <div key={groupIndex} className="px-3">
               {/* Section Title */}
               {group.title && (
-                <h3 className="text-xs font-semibold text-gray-400 dark:text-gray-500 mb-2 px-3 uppercase tracking-wider whitespace-nowrap lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300">
+                <h3 className="text-[11px] font-bold text-gray-400 dark:text-gray-500/80 mb-2 px-3 uppercase tracking-widest whitespace-nowrap lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300">
                   {group.title}
                 </h3>
               )}
@@ -298,7 +298,7 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
                       <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-[#f97316]' : (isDisabled ? 'text-gray-300 dark:text-gray-700' : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-200')}`} />
                       
                       <span className={`
-                        truncate transition-all duration-300 whitespace-nowrap font-medium
+                        truncate transition-all duration-300 whitespace-nowrap text-sm font-semibold
                         ml-3 lg:ml-0 lg:w-0 lg:opacity-0 
                         lg:group-hover:ml-3 lg:group-hover:w-auto lg:group-hover:opacity-100
                         ${isDisabled ? 'text-gray-300 dark:text-gray-600' : ''}
@@ -377,7 +377,7 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
           >
             <Settings size={20} className={`shrink-0 ${location.pathname === '/settings' ? 'text-[#f97316]' : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-200'}`} />
             <span className={`
-              truncate transition-all duration-300 whitespace-nowrap font-medium
+              truncate transition-all duration-300 whitespace-nowrap text-sm font-semibold
               ml-3 lg:ml-0 lg:w-0 lg:opacity-0 
               lg:group-hover:ml-3 lg:group-hover:w-auto lg:group-hover:opacity-100
             `}>
@@ -394,7 +394,7 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
             <span className={`
               ml-3 lg:ml-0 lg:w-0 lg:opacity-0 
               lg:group-hover:ml-3 lg:group-hover:w-auto lg:group-hover:opacity-100
-              truncate transition-all duration-300 whitespace-nowrap font-medium
+              truncate transition-all duration-300 whitespace-nowrap text-sm font-semibold
             `}>
               Log Out
             </span>
