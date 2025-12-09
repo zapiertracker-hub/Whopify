@@ -2,6 +2,12 @@
 
 
 
+
+
+
+
+
+
 import React, { useContext, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CheckoutPage, StoreSettings, PaymentMethod, OrderBump, Coupon } from '../types';
@@ -9,7 +15,7 @@ import { AppContext } from '../AppContext';
 import { 
   CreditCard, ChevronDown, ChevronUp, ShoppingCart, Loader2,
   AlertTriangle, Lock, AlertCircle, MessageCircle, ShoppingBag, Banknote,
-  Landmark, DollarSign, Upload, Wallet, ArrowRight, CheckCircle2, Tag, X
+  Landmark, DollarSign, Upload, Wallet, ArrowRight, CheckCircle2, Tag, X, Copy
 } from 'lucide-react';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { 
@@ -47,6 +53,7 @@ const translations = {
     payWithBank: "Bank Transfer",
     payWithCrypto: "Crypto",
     payWithManual: "Manual",
+    payWithPayPal: "PayPal",
     orderNow: "Order now",
     placeOrder: "Place Order",
     completeOrder: "Complete Order",
@@ -94,6 +101,7 @@ const translations = {
     payWithBank: "Virement bancaire",
     payWithCrypto: "Cryptomonnaie",
     payWithManual: "Paiement manuel",
+    payWithPayPal: "PayPal",
     orderNow: "Payer",
     placeOrder: "Commander",
     completeOrder: "Confirmer la commande",
@@ -191,13 +199,14 @@ const ApplePayLogo = () => (
   </svg>
 );
 
-const GooglePayLogo = () => (
-  <svg width="45" height="18" viewBox="0 0 45 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M7.1029 7.62353V10.8706H10.9765V12.5118H2.98235V10.8706H6.85588V7.62353H2.98235V5.98235H10.9765V7.62353H7.1029Z" fill="currentColor"/>
-    <path fillRule="evenodd" clipRule="evenodd" d="M19.7471 6.15882C19.7471 6.15882 19.7471 6.15882 19.7471 6.15882L22.9941 12.5118H21.2647L20.5059 10.9941H17.2294L16.4706 12.5118H14.7412L17.9882 6.15882H19.7471ZM18.8647 7.69412L17.9353 9.54706H19.8176L18.8647 7.69412Z" fill="currentColor"/>
-    <path d="M25.7471 5.98235L27.9706 9.38824L30.1588 5.98235H32.1706L28.8529 10.9059V12.5118H27.0882V10.9059L23.7706 5.98235H25.7471Z" fill="currentColor"/>
-    <path d="M42.0176 10.8706H38.1441V7.62353H42.0176V5.98235H34.0235V7.62353H37.8971V10.8706H34.0235V12.5118H42.0176V10.8706Z" fill="currentColor"/>
-  </svg>
+const PayPalLogo = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7.076 19.073l.848-5.39h3.768c3.277 0 5.602-1.636 6.326-5.463.383-1.927-.118-3.37-1.583-4.32C15.228 3.125 13.438 3 11.238 3H3.84L2.003 14.616l-.003.016 1.082 6.848h4.03l-.036-.242-.001-.005v-.002l-.001-.005-.001-.005-.001-.005-.001-.006-.001-.005.005.033z" fill="#253b80"/>
+        <path d="M8.706 13.683l-1.082-6.848h5.388c2.2 0 3.99.125 5.197.902 1.465.95 1.966 2.393 1.583 4.32-.724 3.827-3.05 5.463-6.326 5.463H9.72l-.027-.165-.002-.012-.001-.006-.002-.012-.001-.006-.002-.012-.001-.006-.002-.013-.001-.006-.975-3.6z" fill="#179bd7"/>
+        <path d="M8.706 13.683l-1.082-6.848h5.388c2.2 0 3.99.125 5.197.902 1.465.95 1.966 2.393 1.583 4.32-.724 3.827-3.05 5.463-6.326 5.463H9.72l-.027-.165-.002-.012-.001-.006-.002-.012-.001-.006-.002-.012-.001-.006-.002-.013-.001-.006-.975-3.6z" fill="#222d65" opacity=".2"/>
+        <path d="M10.97 12.42l.335 2.122.027.166.975 3.6.002.012.001.006.002.013.001.006.002.012.001.006.027.165h3.336l.848-5.39h-5.56z" fill="#253b80"/>
+        <path d="M9.693 21.605c-.067-.42-.03-.23.232-1.92l.71-4.493h.002l.332 2.12c.32 2.016.37 2.227 2.336 2.227h3.336l-.528 3.356H10.57c-1.127 0-1.282-.57-1.406-1.29z" fill="#179bd7"/>
+    </svg>
 );
 
 const InteractiveCreditCardForm = ({ cardState, setCardState, errors, setErrors, t }: any) => {
@@ -398,6 +407,124 @@ const DemoExpressCheckout = ({ appearance, t }: any) => {
         </div>
     );
 }
+
+const PayPalPaymentForm = ({ config, billingDetails, onValidationFailed, settings, t, selectedUpsellIds }: any) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+      // Check if script exists
+      const existingScript = document.querySelector(`script[src^="https://www.paypal.com/sdk/js"]`);
+      if (existingScript) {
+          setLoading(false);
+          return;
+      }
+
+      if (!settings.paypalClientId) {
+          setError("PayPal Client ID not configured");
+          setLoading(false);
+          return;
+      }
+
+      const script = document.createElement('script');
+      script.src = `https://www.paypal.com/sdk/js?client-id=${settings.paypalClientId}&currency=${settings.currency || 'USD'}`;
+      script.async = true;
+      script.onload = () => setLoading(false);
+      script.onerror = () => {
+          setError("Failed to load PayPal SDK");
+          setLoading(false);
+      };
+      document.body.appendChild(script);
+
+      return () => {
+          // Cleanup logic if needed
+      }
+  }, [settings.paypalClientId, settings.currency]);
+
+  const renderButton = () => {
+      if (!window.paypal) return;
+      
+      const container = document.getElementById('paypal-button-container');
+      if (container) container.innerHTML = ''; // Clear previous buttons
+
+      window.paypal.Buttons({
+          style: {
+              layout: 'vertical',
+              color: 'blue',
+              shape: 'rect',
+              label: 'paypal'
+          },
+          createOrder: async (data: any, actions: any) => {
+               if (!onValidationFailed()) {
+                   // Reject the promise if validation fails, stopping the PayPal popup
+                   return actions.reject();
+               }
+               
+               try {
+                   const res = await fetch(`${API_URL}/api/create-paypal-order`, {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({
+                           checkoutId: config.id,
+                           selectedUpsellIds: Array.from(selectedUpsellIds)
+                       })
+                   });
+                   const orderData = await res.json();
+                   if (orderData.error) throw new Error(orderData.error);
+                   return orderData.id;
+               } catch (err) {
+                   console.error(err);
+                   throw err;
+               }
+          },
+          onApprove: async (data: any, actions: any) => {
+               try {
+                   const res = await fetch(`${API_URL}/api/capture-paypal-order`, {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({
+                           orderID: data.orderID,
+                           checkoutId: config.id,
+                           customerEmail: billingDetails.email,
+                           customerName: billingDetails.fullName,
+                           customerCountry: billingDetails.country
+                       })
+                   });
+                   const captureData = await res.json();
+                   if (captureData.success) {
+                       navigate('/order-confirmation', { state: { customLink: config.customThankYouLink } });
+                   } else {
+                       setError("Payment capture failed.");
+                   }
+               } catch (err) {
+                   console.error(err);
+                   setError("An error occurred during payment capture.");
+               }
+          },
+          onError: (err: any) => {
+              console.error(err);
+              // Don't show generic error if it was just validation rejection
+              if (err.message !== "Validation failed") {
+                  setError("PayPal encountered an error.");
+              }
+          }
+      }).render('#paypal-button-container');
+  };
+
+  useEffect(() => {
+      if (!loading && !error) {
+          renderButton();
+      }
+  }, [loading, error]);
+
+  if (loading) return <div className="flex justify-center p-4"><Loader2 className="animate-spin text-blue-600" /></div>;
+  if (error) return <div className="text-red-500 text-sm p-4 bg-red-50 rounded-lg border border-red-200">{error}</div>;
+
+  return (
+      <div id="paypal-button-container" className="w-full z-0 relative"></div>
+  );
+};
 
 const CardPaymentForm = ({ totalDue, config, billingDetails, setBillingDetails, onValidationFailed, currency, appearance, errors, t, selectedUpsellIds }: any) => {
   const stripe = useStripe();
@@ -604,6 +731,7 @@ const CryptoPaymentForm = ({ settings, config, billingDetails, setBillingDetails
     const [selectedCoin, setSelectedCoin] = useState(settings.cryptoOptions?.[0] || 'BTC');
     const [isProcessing, setIsProcessing] = useState(false);
     const navigate = useNavigate();
+    const [copied, setCopied] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -612,18 +740,24 @@ const CryptoPaymentForm = ({ settings, config, billingDetails, setBillingDetails
         setTimeout(() => navigate('/order-confirmation', { state: { customLink: config.customThankYouLink } }), 1500);
     };
 
+    const handleCopy = () => {
+        navigator.clipboard.writeText(settings.cryptoWalletAddress || '');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
     return (
-        <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in pt-2">
+        <form onSubmit={handleSubmit} className="space-y-8 animate-fade-in pt-2">
              <div className="space-y-6">
                 <div>
-                    <label className="block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wide mb-2">{t.selectCurrency}</label>
-                    <div className="flex gap-2 flex-wrap">
+                    <label className="block text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-3">{t.selectCurrency}</label>
+                    <div className="flex gap-3 flex-wrap">
                         {(settings.cryptoOptions || ['BTC', 'ETH']).map((coin: string) => (
                             <button
                                 key={coin}
                                 type="button"
                                 onClick={() => setSelectedCoin(coin)}
-                                className={`px-4 py-2 rounded-lg border text-sm font-bold transition-all ${selectedCoin === coin ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-500 text-orange-600 dark:text-orange-400' : 'bg-[var(--bg-input)] border-[var(--border-color)] text-[var(--text-secondary)] hover:border-orange-500/50'}`}
+                                className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all border uppercase tracking-wide ${selectedCoin === coin ? 'bg-[#111] dark:bg-[#000] border-[#f97316] text-[#f97316] shadow-[0_0_15px_rgba(249,115,22,0.15)]' : 'bg-[#f5f5f5] dark:bg-[#111] border-transparent text-gray-500 hover:text-[var(--text-primary)]'}`}
                             >
                                 {coin}
                             </button>
@@ -631,17 +765,28 @@ const CryptoPaymentForm = ({ settings, config, billingDetails, setBillingDetails
                     </div>
                 </div>
                 
-                <div className="bg-[var(--bg-input)] p-4 rounded-lg border border-[var(--border-color)] text-center">
-                        <p className="text-xs text-[var(--text-secondary)] uppercase mb-2 font-bold">{t.sendTo.replace('{coin}', selectedCoin)}</p>
-                        <div className="font-mono text-sm text-[var(--text-primary)] break-all bg-[var(--bg-page)] p-3 rounded border border-[var(--border-color)] select-all">
+                <div className="bg-[#111] dark:bg-black p-6 rounded-xl border border-[#222] dark:border-[#222] text-center shadow-inner relative overflow-hidden">
+                        <p className="text-[10px] text-gray-400 uppercase mb-4 font-bold tracking-widest">{t.sendTo.replace('{coin}', selectedCoin)}</p>
+                        
+                        <div 
+                            className="font-mono text-sm text-white break-all bg-black border border-[#333] p-4 rounded-lg select-all shadow-inner tracking-wide relative cursor-pointer hover:border-[#f97316]/50 transition-colors group"
+                            onClick={handleCopy}
+                        >
                             {settings.cryptoWalletAddress || 'No wallet address configured.'}
+                            {/* Copy indicator */}
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {copied ? <CheckCircle2 size={16} className="text-green-500" /> : <Copy size={16} />}
+                            </div>
                         </div>
-                        <p className="text-xs text-orange-500 mt-2 font-medium">{t.cryptoWarning.replace('{coin}', selectedCoin)}</p>
+
+                        <p className="text-xs text-[#ea580c] mt-5 font-bold leading-relaxed">
+                            {t.cryptoWarning.replace('{coin}', selectedCoin)}
+                        </p>
                 </div>
              </div>
 
-             <button type="submit" disabled={isProcessing} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3.5 rounded-lg transition-all active:scale-95 shadow-lg text-sm flex items-center justify-center gap-2 disabled:opacity-50">
-                {isProcessing ? (<><Loader2 size={16} className="animate-spin" /> {t.processing}</>) : (t.sentPayment)}
+             <button type="submit" disabled={isProcessing} className="w-full bg-[#f97316] hover:bg-[#ea580c] text-white font-bold py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-orange-500/20 text-base flex items-center justify-center gap-2 disabled:opacity-50">
+                {isProcessing ? (<><Loader2 size={18} className="animate-spin" /> {t.processing}</>) : (t.sentPayment)}
             </button>
         </form>
     );
@@ -742,6 +887,7 @@ const CheckoutContent = ({
                     const renderPaymentMethodIcon = (m: PaymentMethod) => {
                         switch (m) {
                             case 'stripe': return <CreditCard size={14} />;
+                            case 'paypal': return <PayPalLogo />;
                             case 'bank_transfer': return <Landmark size={14} />;
                             case 'crypto': return <DollarSign size={14} />;
                             case 'manual': return <Banknote size={14} />;
@@ -751,6 +897,7 @@ const CheckoutContent = ({
                     const renderPaymentMethodLabel = (m: PaymentMethod) => {
                         switch (m) {
                             case 'stripe': return t.payWithCard;
+                            case 'paypal': return t.payWithPayPal;
                             case 'bank_transfer': return t.payWithBank;
                             case 'crypto': return t.payWithCrypto;
                             case 'manual': return settings.manualPaymentLabel || t.payWithManual;
@@ -790,6 +937,9 @@ const CheckoutContent = ({
                                         ) : (
                                             <CardPaymentForm totalDue={totalDue} config={config} billingDetails={billingDetails} setBillingDetails={updateBilling} onValidationFailed={validateForm} currency={currency} appearance={appearance} errors={errors} t={t} selectedUpsellIds={selectedUpsellIds} />
                                         )
+                                    )}
+                                    {method === 'paypal' && (
+                                        <PayPalPaymentForm config={config} settings={settings} billingDetails={billingDetails} onValidationFailed={validateForm} t={t} selectedUpsellIds={selectedUpsellIds} />
                                     )}
                                     {method === 'manual' && (
                                         <ManualCheckoutForm config={config} settings={settings} billingDetails={billingDetails} setBillingDetails={updateBilling} onValidationFailed={validateForm} errors={errors} t={t} selectedUpsellIds={selectedUpsellIds} />
@@ -853,6 +1003,7 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
   const enabledMethods = React.useMemo(() => config.paymentMethods.filter((m: PaymentMethod) => {
       switch (m) {
           case 'stripe': return settings.stripeEnabled && (isDemo || (activeStripeKey && activeStripeKey.trim()));
+          case 'paypal': return settings.paypalEnabled && (isDemo || (settings.paypalClientId && settings.paypalClientId.trim()));
           case 'manual': return settings.manualPaymentEnabled;
           case 'bank_transfer': return settings.bankTransferEnabled;
           case 'crypto': return settings.cryptoEnabled;
@@ -897,7 +1048,7 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
   };
 
   const handleBillingBlur = (field: string) => {
-      const newErrors = { ...errors };
+      const newErrors: { [key: string]: string } = { ...errors };
       const collectPhone = config.collectPhoneNumber === true;
       const t = translations[(config.language as LangCode) || 'en'];
 
@@ -947,8 +1098,8 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
   };
 
   useEffect(() => {
-    setIsDemo(isPreview || (!activeStripeKey?.trim() && !settings.manualPaymentEnabled));
-  }, [isPreview, activeStripeKey, settings.manualPaymentEnabled]);
+    setIsDemo(isPreview || (!activeStripeKey?.trim() && !settings.manualPaymentEnabled && !settings.paypalEnabled));
+  }, [isPreview, activeStripeKey, settings.manualPaymentEnabled, settings.paypalEnabled]);
 
   useEffect(() => {
     if (!isDemo && settings.stripeEnabled && activeStripeKey && !activeStripeKey.includes('...')) {
@@ -1138,7 +1289,7 @@ export const CheckoutRenderer = ({ checkout: config, settings, isPreview = false
       validateForm, 
       enabledMethods, 
       paymentMethod, 
-      setPaymentMethod,
+      setPaymentMethod, 
       cardState, 
       setCardState,
       currency,
@@ -1270,6 +1421,9 @@ const CheckoutView = () => {
                // Pass active accounts metadata if needed on public view (though mostly backend handled)
                stripeAccounts: data.stripeAccounts || [],
                activeStripeAccountId: data.activeStripeAccountId,
+               paypalEnabled: data.paypalEnabled,
+               paypalClientId: data.paypalClientId,
+               paypalMode: data.paypalMode,
                currency: data.currency,
                whatsappEnabled: data.whatsappEnabled,
                whatsappNumber: data.whatsappNumber,
@@ -1283,44 +1437,37 @@ const CheckoutView = () => {
                cryptoOptions: data.cryptoOptions,
                cryptoWalletAddress: data.cryptoWalletAddress
            });
+           setLoading(false);
        })
        .catch(err => {
-           const found = checkouts.find(c => c.id === checkoutId);
-           if (found) {
-               setConfig(found);
-               // Local Fallback
-               setPublicSettings({
-                   stripeEnabled: settings.stripeEnabled,
-                   stripePublishableKey: settings.stripePublishableKey,
-                   stripeAccounts: settings.stripeAccounts || [],
-                   activeStripeAccountId: settings.activeStripeAccountId,
-                   currency: settings.currency || 'USD',
-                   whatsappEnabled: settings.whatsappEnabled,
-                   whatsappNumber: settings.whatsappNumber,
-                   manualPaymentEnabled: settings.manualPaymentEnabled,
-                   manualPaymentLabel: settings.manualPaymentLabel,
-                   manualPaymentInstructions: settings.manualPaymentInstructions,
-                   bankTransferEnabled: settings.bankTransferEnabled,
-                   bankTransferDetails: settings.bankTransferDetails,
-                   bankTransferInstructions: settings.bankTransferInstructions,
-                   cryptoEnabled: settings.cryptoEnabled,
-                   cryptoOptions: settings.cryptoOptions,
-                   cryptoWalletAddress: settings.cryptoWalletAddress
-               });
-           }
-       })
-       .finally(() => setLoading(false));
-  }, [checkoutId, checkouts]);
+           console.error("Failed to load checkout config", err);
+           setLoading(false);
+       });
+  }, [checkoutId]);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-black"><div className="text-center space-y-3"><Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" /><p className="text-gray-500">Loading secure checkout...</p></div></div>;
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="animate-spin text-[#f97316]" size={40} />
+      </div>
+    );
   }
 
-  if (!config || !publicSettings) {
-      return <div className="min-h-screen flex items-center justify-center bg-black text-white">Checkout not found.</div>;
+  if (!config) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center text-white">
+        Checkout not found or unavailable.
+      </div>
+    );
   }
 
-  return <CheckoutRenderer checkout={config} settings={publicSettings} />;
+  return (
+      <CheckoutRenderer 
+          checkout={config} 
+          settings={publicSettings} 
+          isPreview={false}
+      />
+  );
 };
 
 export default CheckoutView;

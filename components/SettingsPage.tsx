@@ -1,6 +1,8 @@
 
 
 
+
+
 import React, { useState, useContext, useEffect } from 'react';
 import { AppContext } from '../AppContext';
 import { useSearchParams } from 'react-router-dom';
@@ -32,6 +34,7 @@ const SettingsPage = () => {
   const [marketingSubTab, setMarketingSubTab] = useState<'email' | 'affiliates'>('email');
   const [localSettings, setLocalSettings] = useState(settings);
   const [showStripeKey, setShowStripeKey] = useState<{[key: string]: boolean}>({});
+  const [showPayPalSecret, setShowPayPalSecret] = useState(false);
   const [isVerifyingStripe, setIsVerifyingStripe] = useState(false);
   const [stripeVerificationResult, setStripeVerificationResult] = useState<'success' | 'error' | null>(null);
   const [stripeConnectionDetails, setStripeConnectionDetails] = useState<{ mode: string, currency: string } | null>(null);
@@ -753,6 +756,79 @@ const SettingsPage = () => {
 
                     {stripeVerificationResult === 'success' && <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-2 text-xs text-green-600 dark:text-green-400 font-bold animate-in fade-in"><CheckCircle2 size={14} /> Connected: {stripeConnectionDetails?.mode}</div>}
                     {stripeVerificationResult === 'error' && <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-xs text-red-600 dark:text-red-400 font-bold animate-in fade-in"><XCircle size={14} /> {stripeErrorMessage}</div>}
+                  </div>
+                )}
+              </div>
+
+              {/* PayPal Section */}
+              <div className={`bg-white dark:bg-[#09090b] rounded-2xl border transition-all duration-300 overflow-hidden shadow-sm ${localSettings.paypalEnabled ? 'border-[#003087] ring-1 ring-[#003087]/30' : 'border-gray-200 dark:border-white/10'}`}>
+                <div className="p-6 md:p-8 flex justify-between items-start bg-gradient-to-b from-[#003087]/5 to-transparent">
+                  <div className="flex items-center gap-5">
+                    <div className="p-3.5 bg-[#003087] text-white rounded-2xl shadow-lg shadow-[#003087]/30">
+                        <Wallet size={32} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                          PayPal
+                          {localSettings.paypalEnabled && <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#003087]/10 text-[#003087] border border-[#003087]/20 text-[10px] font-bold uppercase tracking-wider"><CheckCircle2 size={12} /> Active</span>}
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Accept payments via PayPal accounts.</p>
+                    </div>
+                  </div>
+                  <button onClick={() => updateSetting('paypalEnabled', !localSettings.paypalEnabled)} className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${localSettings.paypalEnabled ? 'bg-[#003087]' : 'bg-gray-200 dark:bg-[#1a1a1a]'}`}>
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${localSettings.paypalEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                
+                {localSettings.paypalEnabled && (
+                  <div className="px-6 md:px-8 pb-8 pt-2 animate-in slide-in-from-top-2 fade-in">
+                    <div className="p-6 bg-gray-50 dark:bg-[#121214] rounded-xl border border-gray-200 dark:border-white/10 space-y-5">
+                        <div className="flex items-center justify-between mb-4">
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Environment</span>
+                            <div className="flex bg-white dark:bg-[#09090b] p-1 rounded-lg border border-gray-200 dark:border-white/10">
+                                <button 
+                                    onClick={() => updateSetting('paypalMode', 'sandbox')}
+                                    className={`px-3 py-1 rounded text-xs font-bold transition-all ${localSettings.paypalMode === 'sandbox' ? 'bg-[#003087] text-white' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+                                >
+                                    Sandbox
+                                </button>
+                                <button 
+                                    onClick={() => updateSetting('paypalMode', 'live')}
+                                    className={`px-3 py-1 rounded text-xs font-bold transition-all ${localSettings.paypalMode === 'live' ? 'bg-[#003087] text-white' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+                                >
+                                    Live
+                                </button>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Client ID</label>
+                            <input 
+                                type="text" 
+                                value={localSettings.paypalClientId || ''} 
+                                onChange={(e) => updateSetting('paypalClientId', e.target.value)} 
+                                className="w-full px-4 py-3 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:border-[#003087] outline-none font-mono text-xs" 
+                                placeholder="Client ID from PayPal Developer Dashboard" 
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Client Secret</label>
+                            <div className="relative">
+                                <input 
+                                    type={showPayPalSecret ? "text" : "password"} 
+                                    value={localSettings.paypalSecret || ''} 
+                                    onChange={(e) => updateSetting('paypalSecret', e.target.value)} 
+                                    className="w-full px-4 py-3 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white focus:border-[#003087] outline-none font-mono text-xs pr-10" 
+                                    placeholder="Secret Key" 
+                                />
+                                <button 
+                                    onClick={() => setShowPayPalSecret(!showPayPalSecret)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                                >
+                                    {showPayPalSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                   </div>
                 )}
               </div>

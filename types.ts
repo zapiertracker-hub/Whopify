@@ -54,59 +54,38 @@ export interface OrderBump {
   enabled: boolean;
   title: string;
   description: string;
+  price: number;
   image?: string;
-  
-  // Pricing Configuration
-  offerType: 'one_time' | 'multi_month'; // Standard or "2.99 x 12 months"
-  price: number; // The total price charged (e.g. 35.88)
-  
-  // Display details for multi-month
+  // Added fields based on StoreBuilder usage
+  offerType?: 'one_time' | 'multi_month';
   monthlyPrice?: number;
   durationMonths?: number;
 }
 
-export interface Coupon {
-  id: string;
-  code: string;
-  type: 'percentage' | 'fixed';
-  value: number;
-  status: 'active' | 'expired' | 'disabled';
-  usageLimit?: number; // Infinite if undefined
-  usedCount: number;
-  expiryDate?: string; // ISO Date string
-}
-
 export interface CheckoutPage {
   id: string;
-  name: string; // Internal name
+  name: string;
+  currency: string;
   status: 'active' | 'draft';
-  thumbnail: string;
-  logo?: string; // Custom Logo for the checkout page
-  logoScale?: number; // Percentage scale (e.g. 100 for 100%)
-  appearance?: 'light' | 'dark'; // Visual Theme Preference
-  language?: 'en' | 'fr'; // Checkout Language
-  
-  // Analytics
   visits: number;
   conversions: number;
   totalRevenue: number;
-
-  // Configuration
-  currency: string;
-  themeColor: string;
+  thumbnail?: string;
+  themeColor?: string;
+  appearance?: 'light' | 'dark';
   paymentMethods: PaymentMethod[];
   products: Product[];
+  upsells?: OrderBump[];
+  upsell?: OrderBump; // Legacy/Single upsell support
   components: CheckoutComponent[];
-  
-  upsells: OrderBump[]; // New Array support
-  upsell?: OrderBump; // Deprecated single upsell
-
-  collectPhoneNumber?: boolean; // Toggle for phone number field
-  collectFullName?: boolean; // Toggle for full name field
-
+  logo?: string;
+  logoScale?: number;
+  collectFullName?: boolean;
+  collectPhoneNumber?: boolean;
+  language?: Language;
   customThankYouLink?: {
     enabled: boolean;
-    text: string;
+    text?: string;
     url: string;
   };
 }
@@ -116,8 +95,8 @@ export interface StripeAccount {
   label: string;
   publishableKey: string;
   secretKey: string;
-  revenueLimit?: number; // 0 or undefined means unlimited
-  currentRevenue: number;
+  currentRevenue?: number;
+  revenueLimit?: number;
 }
 
 export interface StoreSettings {
@@ -126,48 +105,45 @@ export interface StoreSettings {
   currency: string;
   timezone: string;
   
-  // Payment Gateways
   stripeEnabled: boolean;
   paypalEnabled: boolean;
   cryptoEnabled: boolean;
   cashAppEnabled: boolean;
-  bankTransferEnabled?: boolean;
+  bankTransferEnabled: boolean;
 
   stripeTestMode: boolean;
-  // Legacy single key support (maintained for backward compatibility)
   stripePublishableKey: string;
   stripeSecretKey: string;
   stripeSigningSecret: string;
-
-  // New Multi-Stripe Support
-  stripeAccounts: StripeAccount[];
+  
+  stripeAccounts?: StripeAccount[];
   activeStripeAccountId?: string;
 
-  // Manual Payment
-  manualPaymentEnabled?: boolean;
+  paypalClientId?: string;
+  paypalSecret?: string;
+  paypalMode?: 'sandbox' | 'live';
+
+  manualPaymentEnabled: boolean;
   manualPaymentLabel?: string;
   manualPaymentInstructions?: string;
 
-  // Bank Transfer
-  bankTransferDetails?: string; // Account info
+  bankTransferDetails?: string;
   bankTransferInstructions?: string;
-
-  // Crypto
+  
   cryptoWalletAddress?: string;
-  cryptoOptions?: string[]; // e.g. ['BTC', 'ETH']
+  cryptoOptions?: string[];
 
-  // Customer Portal Settings
-  portalAllowCancellation?: boolean;
-  portalAllowPlanChange?: boolean;
-  portalAllowPaymentUpdate?: boolean;
-  portalShowHistory?: boolean;
+  // Customer Portal Defaults
+  portalAllowCancellation: boolean;
+  portalAllowPlanChange: boolean;
+  portalAllowPaymentUpdate: boolean;
+  portalShowHistory: boolean;
 
-  // Tax Settings
   taxEnabled: boolean;
-  taxRate: number; // Percentage
-  taxName: string; // e.g. VAT, Sales Tax
+  taxRate: number;
+  taxName: string;
 
-  // Integrations
+  // Integrations Defaults
   crispEnabled?: boolean;
   crispWebsiteId?: string;
   whatsappEnabled?: boolean;
@@ -175,19 +151,23 @@ export interface StoreSettings {
   
   // Google Sheets Integration
   googleSheetsEnabled?: boolean;
-  googleSheetsUrl?: string; // Webhook URL or Sheet ID
+  googleSheetsUrl?: string;
 
-  // Domains
-  customDomain?: string;
-  domainStatus?: 'none' | 'pending' | 'active' | 'failed';
-
-  // Security
+  // Security Defaults
   twoFactorEnabled?: boolean;
+
+  // Custom Domain
+  customDomain?: string;
+  domainStatus?: 'active' | 'pending' | 'none';
 }
 
-export interface User {
+export interface Coupon {
   id: string;
-  name: string;
-  role: 'seller' | 'admin';
-  avatar: string;
+  code: string;
+  type: 'percentage' | 'fixed';
+  value: number;
+  status: 'active' | 'expired' | 'disabled';
+  usedCount: number;
+  usageLimit?: number;
+  expiryDate?: string;
 }

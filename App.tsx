@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useEffect, ReactNode, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { 
@@ -84,6 +86,10 @@ const defaultSettings: StoreSettings = {
   
   stripeAccounts: [],
   activeStripeAccountId: undefined,
+
+  paypalClientId: '',
+  paypalSecret: '',
+  paypalMode: 'sandbox',
 
   manualPaymentEnabled: false,
   manualPaymentLabel: 'Manual Payment',
@@ -622,6 +628,7 @@ declare global {
   interface Window {
     $crisp: any[];
     CRISP_WEBSITE_ID: string;
+    paypal: any;
   }
 }
 

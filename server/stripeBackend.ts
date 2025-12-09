@@ -1,3 +1,5 @@
+
+
 import express from 'express';
 import Stripe from 'stripe';
 import cors from 'cors';
@@ -5,6 +7,7 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Buffer } from 'buffer';
 
 dotenv.config();
 
@@ -29,7 +32,11 @@ const loadDb = () => {
       stripePublishableKey: '',
       stripeSecretKey: '',
       stripeAccounts: [],
-      activeStripeAccountId: undefined
+      activeStripeAccountId: undefined,
+      paypalEnabled: false,
+      paypalClientId: '',
+      paypalSecret: '',
+      paypalMode: 'sandbox'
     } 
   };
 
@@ -42,7 +49,7 @@ const loadDb = () => {
     if (!content.trim()) return defaultDb;
     const parsed = JSON.parse(content);
     // Merge with default to ensure all root keys exist
-    return { ...defaultDb, ...parsed };
+    return { ...defaultDb, ...parsed, settings: { ...defaultDb.settings, ...parsed.settings } };
   } catch (e) {
     console.warn("Failed to parse local_db.json, using default DB.", e);
     return defaultDb;
@@ -108,6 +115,30 @@ const ensureStripe = async () => {
   return null;
 };
 
+// Helper for PayPal Token
+const getPayPalAccessToken = async () => {
+  const settings = await db.getSettings();
+  const clientId = settings.paypalClientId;
+  const clientSecret = settings.paypalSecret;
+  const mode = settings.paypalMode || 'sandbox';
+  const baseUrl = mode === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+
+  if (!clientId || !clientSecret) return null;
+
+  const auth = Buffer.from(clientId + ":" + clientSecret).toString("base64");
+  const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
+    method: "POST",
+    body: "grant_type=client_credentials",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+  });
+
+  const data: any = await response.json();
+  return { accessToken: data.access_token, baseUrl };
+};
+
 // --- Endpoints ---
 
 // 1. Get All Checkouts
@@ -154,6 +185,9 @@ app.get('/api/public-config/:checkoutId', async (req, res) => {
     checkout,
     stripeEnabled: settings.stripeEnabled,
     stripePublishableKey: settings.stripePublishableKey, // Safe to expose
+    paypalEnabled: settings.paypalEnabled,
+    paypalClientId: settings.paypalClientId, // Safe to expose
+    paypalMode: settings.paypalMode,
     currency: settings.currency || 'USD',
     whatsappEnabled: settings.whatsappEnabled,
     whatsappNumber: settings.whatsappNumber,
@@ -388,7 +422,117 @@ app.post('/api/verify-connection', async (req, res) => {
     }
 });
 
-// 11. Dashboard Analytics
+// 11. Create PayPal Order
+app.post("/api/create-paypal-order", async (req, res) => {
+  const { checkoutId, selectedUpsellIds } = req.body;
+  if (!checkoutId) return res.status(400).json({ error: "Missing checkoutId" });
+
+  const checkout = await db.getCheckout(checkoutId);
+  if (!checkout) return res.status(404).json({ error: "Checkout not found" });
+
+  const settings = await db.getSettings();
+  const currencyKey = (settings.currency || 'USD').toLowerCase();
+  
+  let total = 0;
+  for (const p of checkout.products || []) {
+    let price = 0;
+    if (p.pricing?.oneTime?.enabled) {
+      price = p.pricing.oneTime.prices[currencyKey] ?? p.pricing.oneTime.prices.usd;
+    } else if (p.pricing?.subscription?.enabled) {
+      price = p.pricing.subscription.prices[currencyKey] ?? p.pricing.subscription.prices.usd;
+    } else if (p.pricing?.paymentPlan?.enabled) {
+      price = p.pricing.paymentPlan.prices[currencyKey] ?? p.pricing.paymentPlan.prices.usd;
+    } else {
+      price = p.price ?? 0;
+    }
+    if (price == null || isNaN(price)) price = 0;
+    total += price;
+  }
+
+  if (Array.isArray(selectedUpsellIds) && selectedUpsellIds.length > 0) {
+      const allUpsells = [...(checkout.upsells || []), ...(checkout.upsell?.enabled ? [checkout.upsell] : [])];
+      selectedUpsellIds.forEach((id: string) => {
+          const found = allUpsells.find((u: any) => u.id === id && u.enabled);
+          if (found) {
+              total += (found.price || 0);
+          }
+      });
+  }
+
+  const auth = await getPayPalAccessToken();
+  if (!auth || !auth.accessToken) return res.status(500).json({ error: "PayPal configuration error" });
+
+  const url = `${auth.baseUrl}/v2/checkout/orders`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${auth.accessToken}`,
+    },
+    body: JSON.stringify({
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          amount: {
+            currency_code: settings.currency,
+            value: total.toFixed(2),
+          },
+          description: `Order from ${checkout.name}`,
+        },
+      ],
+    }),
+  });
+
+  const data: any = await response.json();
+  res.json(data);
+});
+
+// 12. Capture PayPal Order
+app.post("/api/capture-paypal-order", async (req, res) => {
+  const { orderID, checkoutId, customerEmail, customerName, customerCountry } = req.body;
+  const auth = await getPayPalAccessToken();
+  if (!auth || !auth.accessToken) return res.status(500).json({ error: "PayPal configuration error" });
+
+  const url = `${auth.baseUrl}/v2/checkout/orders/${orderID}/capture`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${auth.accessToken}`,
+    },
+  });
+
+  const data: any = await response.json();
+  
+  if (data.status === 'COMPLETED') {
+      const settings = await db.getSettings();
+      const captureAmount = data.purchase_units[0].payments.captures[0].amount.value;
+      const captureCurrency = data.purchase_units[0].payments.captures[0].amount.currency_code;
+
+      const order = {
+        id: data.id,
+        amount: captureAmount,
+        amount_cents: Math.round(parseFloat(captureAmount) * 100),
+        currency: captureCurrency,
+        status: "succeeded",
+        date: new Date().toISOString().split('T')[0],
+        timestamp: new Date().toISOString(),
+        items: 1, // Simplified count
+        checkoutId: checkoutId,
+        paymentProvider: "paypal",
+        customerEmail: customerEmail || data.payer?.email_address,
+        customerName: customerName || `${data.payer?.name?.given_name} ${data.payer?.name?.surname}`,
+        customerCountry: customerCountry || data.payer?.address?.country_code
+      };
+
+      await db.saveOrder(order);
+      res.json({ success: true, orderId: data.id });
+  } else {
+      res.status(400).json({ error: "Payment not completed" });
+  }
+});
+
+// 13. Dashboard Analytics
 app.get('/api/analytics', async (req, res) => {
     const data = loadDb();
     const orders = data.orders || [];
@@ -425,13 +569,13 @@ app.get('/api/analytics', async (req, res) => {
     });
 });
 
-// 12. Get Orders
+// 14. Get Orders
 app.get('/api/orders', async (req, res) => {
     const data = loadDb();
     res.json(data.orders || []);
 });
 
-// 13. Get Customers
+// 15. Get Customers
 app.get('/api/customers', async (req, res) => {
     const data = loadDb();
     res.json(data.customers || []);
