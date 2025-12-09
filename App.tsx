@@ -2,6 +2,14 @@
 
 
 
+
+
+
+
+
+
+
+
 import React, { useState, useEffect, ReactNode, useRef } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { 
@@ -36,7 +44,8 @@ import {
   Puzzle,
   FileText,
   Megaphone,
-  Code
+  Code,
+  Link2
 } from 'lucide-react';
 import DashboardHome from './components/DashboardHome';
 import AnalyticsPage from './components/AnalyticsPage';
@@ -55,6 +64,7 @@ import AppsPage from './components/AppsPage';
 import DiscountsPage from './components/DiscountsPage';
 import AffiliatesPage from './components/AffiliatesPage';
 import DevelopersPage from './components/DevelopersPage';
+import PaymentLinksPage from './components/PaymentLinksPage';
 import HomePage from './components/HomePage';
 import LoginPage from './components/LoginPage';
 import { AppContext, UserProfile } from './AppContext'; 
@@ -120,6 +130,41 @@ const defaultSettings: StoreSettings = {
   // Google Sheets Integration
   googleSheetsEnabled: false,
   googleSheetsUrl: '',
+
+  // Shopify Integration
+  shopifyEnabled: false,
+  shopifyStoreUrl: '',
+  shopifyAccessToken: '',
+
+  // WooCommerce Integration
+  wooCommerceEnabled: false,
+  wooCommerceUrl: '',
+  wooCommerceConsumerKey: '',
+  wooCommerceConsumerSecret: '',
+
+  // n8n Integration
+  n8nEnabled: false,
+  n8nWebhookUrl: '',
+
+  // Google Analytics
+  gaEnabled: false,
+  gaMeasurementId: '',
+
+  // Helpspace
+  helpspaceEnabled: false,
+  helpspaceWidgetId: '',
+
+  // Socials
+  socialsEnabled: false,
+  socialFacebook: '',
+  socialTwitter: '',
+  socialInstagram: '',
+  socialYoutube: '',
+  socialTiktok: '',
+
+  // Discord
+  discordEnabled: false,
+  discordWebhookUrl: '',
 
   // Security Defaults
   twoFactorEnabled: false
@@ -237,6 +282,7 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
       title: 'Store',
       items: [
         { path: '/checkouts', label: 'Checkouts', icon: ShoppingBag }, 
+        { path: '/payment-links', label: 'Payment Links', icon: Link2 },
         { path: '/orders', label: 'Orders', icon: ShoppingCart },
         { path: '/customers', label: 'Customers', icon: Users, badge: true },
         { path: '/coupons', label: 'Coupons', icon: Tags },
@@ -934,6 +980,7 @@ export default function App() {
                   <Route path="/analytics" element={<AnalyticsPage />} />
                   <Route path="/checkouts" element={<ProductManager />} />
                   <Route path="/checkouts/:checkoutId" element={<StoreBuilder />} />
+                  <Route path="/payment-links" element={<PaymentLinksPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   
                   <Route path="/orders" element={<OrdersPage />} />

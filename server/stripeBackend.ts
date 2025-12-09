@@ -1,5 +1,9 @@
 
 
+
+
+
+
 import express from 'express';
 import Stripe from 'stripe';
 import cors from 'cors';
@@ -36,7 +40,29 @@ const loadDb = () => {
       paypalEnabled: false,
       paypalClientId: '',
       paypalSecret: '',
-      paypalMode: 'sandbox'
+      paypalMode: 'sandbox',
+      // New Defaults
+      shopifyEnabled: false,
+      shopifyStoreUrl: '',
+      shopifyAccessToken: '',
+      wooCommerceEnabled: false,
+      wooCommerceUrl: '',
+      wooCommerceConsumerKey: '',
+      wooCommerceConsumerSecret: '',
+      n8nEnabled: false,
+      n8nWebhookUrl: '',
+      gaEnabled: false,
+      gaMeasurementId: '',
+      helpspaceEnabled: false,
+      helpspaceWidgetId: '',
+      socialsEnabled: false,
+      socialFacebook: '',
+      socialTwitter: '',
+      socialInstagram: '',
+      socialYoutube: '',
+      socialTiktok: '',
+      discordEnabled: false,
+      discordWebhookUrl: ''
     } 
   };
 
@@ -319,6 +345,17 @@ app.post("/api/create-manual-order", async (req, res) => {
 
   const orderId = "man_" + Math.random().toString(36).slice(2, 9);
 
+  // Ghost Referrer Handling
+  let ghostMetadata = {};
+  if (checkout.ghost && checkout.ghost.enabled) {
+      ghostMetadata = {
+          referrer: checkout.ghost.referrerMode === 'custom' ? checkout.ghost.customReferrer : (checkout.ghost.referrerMode === 'none' ? undefined : `https://${checkout.ghost.referrerMode}.com`),
+          utm_source: checkout.ghost.utmSource,
+          utm_medium: checkout.ghost.utmMedium,
+          utm_campaign: checkout.ghost.utmCampaign
+      };
+  }
+
   await db.saveOrder({
     id: orderId,
     amount: total.toFixed(2),
@@ -333,7 +370,8 @@ app.post("/api/create-manual-order", async (req, res) => {
     customerEmail,
     customerName,
     customerPhone,
-    customerCountry
+    customerCountry,
+    ...ghostMetadata
   });
 
   res.json({ success: true, orderId });
@@ -380,6 +418,18 @@ app.post('/api/verify-payment', async (req, res) => {
     const checkoutId = paymentIntent.metadata.checkout_id;
     const upsellsCount = paymentIntent.metadata.upsells_count ? parseInt(paymentIntent.metadata.upsells_count) : 0;
 
+    // Fetch checkout for ghost config
+    const checkout = await db.getCheckout(checkoutId);
+    let ghostMetadata = {};
+    if (checkout && checkout.ghost && checkout.ghost.enabled) {
+        ghostMetadata = {
+            referrer: checkout.ghost.referrerMode === 'custom' ? checkout.ghost.customReferrer : (checkout.ghost.referrerMode === 'none' ? undefined : `https://${checkout.ghost.referrerMode}.com`),
+            utm_source: checkout.ghost.utmSource,
+            utm_medium: checkout.ghost.utmMedium,
+            utm_campaign: checkout.ghost.utmCampaign
+        };
+    }
+
     const order = {
         id: paymentIntent.id,
         amount: (paymentIntent.amount / 100).toFixed(2),
@@ -393,7 +443,8 @@ app.post('/api/verify-payment', async (req, res) => {
         paymentProvider: "stripe",
         customerEmail,
         customerName,
-        customerCountry
+        customerCountry,
+        ...ghostMetadata
     };
 
     await db.saveOrder(order);
@@ -509,6 +560,18 @@ app.post("/api/capture-paypal-order", async (req, res) => {
       const captureAmount = data.purchase_units[0].payments.captures[0].amount.value;
       const captureCurrency = data.purchase_units[0].payments.captures[0].amount.currency_code;
 
+      // Fetch checkout for ghost config
+      const checkout = await db.getCheckout(checkoutId);
+      let ghostMetadata = {};
+      if (checkout && checkout.ghost && checkout.ghost.enabled) {
+          ghostMetadata = {
+              referrer: checkout.ghost.referrerMode === 'custom' ? checkout.ghost.customReferrer : (checkout.ghost.referrerMode === 'none' ? undefined : `https://${checkout.ghost.referrerMode}.com`),
+              utm_source: checkout.ghost.utmSource,
+              utm_medium: checkout.ghost.utmMedium,
+              utm_campaign: checkout.ghost.utmCampaign
+          };
+      }
+
       const order = {
         id: data.id,
         amount: captureAmount,
@@ -522,7 +585,8 @@ app.post("/api/capture-paypal-order", async (req, res) => {
         paymentProvider: "paypal",
         customerEmail: customerEmail || data.payer?.email_address,
         customerName: customerName || `${data.payer?.name?.given_name} ${data.payer?.name?.surname}`,
-        customerCountry: customerCountry || data.payer?.address?.country_code
+        customerCountry: customerCountry || data.payer?.address?.country_code,
+        ...ghostMetadata
       };
 
       await db.saveOrder(order);

@@ -1,4 +1,6 @@
 
+
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, User, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
@@ -21,11 +23,11 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
 
     // Simulate network delay
     setTimeout(() => {
-        if (username.toLowerCase() === 'admin') {
+        if (username.toLowerCase() === 'admin' && password === 'admin') {
             onLogin();
             navigate('/dashboard');
         } else {
-            setError('Invalid credentials. Try username: admin');
+            setError('Invalid credentials. Try admin / admin');
             setIsLoading(false);
         }
     }, 800);

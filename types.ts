@@ -62,6 +62,15 @@ export interface OrderBump {
   durationMonths?: number;
 }
 
+export interface GhostConfig {
+  enabled: boolean;
+  referrerMode: 'google' | 'facebook' | 'tiktok' | 'custom' | 'none';
+  customReferrer?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+}
+
 export interface CheckoutPage {
   id: string;
   name: string;
@@ -88,6 +97,7 @@ export interface CheckoutPage {
     text?: string;
     url: string;
   };
+  ghost?: GhostConfig;
 }
 
 export interface StripeAccount {
@@ -152,6 +162,41 @@ export interface StoreSettings {
   // Google Sheets Integration
   googleSheetsEnabled?: boolean;
   googleSheetsUrl?: string;
+
+  // Shopify Integration
+  shopifyEnabled?: boolean;
+  shopifyStoreUrl?: string;
+  shopifyAccessToken?: string;
+
+  // WooCommerce Integration
+  wooCommerceEnabled?: boolean;
+  wooCommerceUrl?: string;
+  wooCommerceConsumerKey?: string;
+  wooCommerceConsumerSecret?: string;
+
+  // n8n Integration
+  n8nEnabled?: boolean;
+  n8nWebhookUrl?: string;
+
+  // Google Analytics
+  gaEnabled?: boolean;
+  gaMeasurementId?: string;
+
+  // Helpspace
+  helpspaceEnabled?: boolean;
+  helpspaceWidgetId?: string;
+
+  // Socials
+  socialsEnabled?: boolean;
+  socialFacebook?: string;
+  socialTwitter?: string;
+  socialInstagram?: string;
+  socialYoutube?: string;
+  socialTiktok?: string;
+
+  // Discord
+  discordEnabled?: boolean;
+  discordWebhookUrl?: string;
 
   // Security Defaults
   twoFactorEnabled?: boolean;

@@ -1,16 +1,20 @@
 
 
+
+
+
+
 import React, { useContext, useState } from 'react';
 import { 
   BarChart2, MessageCircle, LifeBuoy, Share2, Gamepad2, ShoppingBag, 
   Bitcoin, CreditCard, Wallet, DollarSign, Plus, Check, Settings as SettingsIcon,
   X, Save, Loader2, ChevronRight, LayoutDashboard, Facebook, Twitter, Youtube, Send,
-  FileSpreadsheet
+  FileSpreadsheet, Zap, Globe
 } from 'lucide-react';
 import { AppContext } from '../AppContext';
 import { useNavigate } from 'react-router-dom';
 
-type AppId = 'crisp' | 'whatsapp' | 'ga' | 'helpspace' | 'socials' | 'discord' | 'shopify' | 'crypto' | 'stripe' | 'paypal' | 'cashapp' | 'google_sheets';
+type AppId = 'crisp' | 'whatsapp' | 'ga' | 'helpspace' | 'socials' | 'discord' | 'shopify' | 'woocommerce' | 'n8n' | 'crypto' | 'stripe' | 'paypal' | 'cashapp' | 'google_sheets';
 
 const AppsPage = () => {
   const { settings, saveSettings } = useContext(AppContext);
@@ -25,6 +29,41 @@ const AppsPage = () => {
   const [sheetUrl, setSheetUrl] = useState(settings.googleSheetsUrl || '');
   const [isSheetsEnabled, setIsSheetsEnabled] = useState(settings.googleSheetsEnabled || false);
 
+  // Shopify State
+  const [shopifyUrl, setShopifyUrl] = useState(settings.shopifyStoreUrl || '');
+  const [shopifyToken, setShopifyToken] = useState(settings.shopifyAccessToken || '');
+  const [isShopifyEnabled, setIsShopifyEnabled] = useState(settings.shopifyEnabled || false);
+
+  // WooCommerce State
+  const [wooUrl, setWooUrl] = useState(settings.wooCommerceUrl || '');
+  const [wooKey, setWooKey] = useState(settings.wooCommerceConsumerKey || '');
+  const [wooSecret, setWooSecret] = useState(settings.wooCommerceConsumerSecret || '');
+  const [isWooEnabled, setIsWooEnabled] = useState(settings.wooCommerceEnabled || false);
+
+  // n8n State
+  const [n8nUrl, setN8nUrl] = useState(settings.n8nWebhookUrl || '');
+  const [isN8nEnabled, setIsN8nEnabled] = useState(settings.n8nEnabled || false);
+
+  // Google Analytics State
+  const [gaId, setGaId] = useState(settings.gaMeasurementId || '');
+  const [isGaEnabled, setIsGaEnabled] = useState(settings.gaEnabled || false);
+
+  // Helpspace State
+  const [helpspaceId, setHelpspaceId] = useState(settings.helpspaceWidgetId || '');
+  const [isHelpspaceEnabled, setIsHelpspaceEnabled] = useState(settings.helpspaceEnabled || false);
+
+  // Socials State
+  const [socialFb, setSocialFb] = useState(settings.socialFacebook || '');
+  const [socialTw, setSocialTw] = useState(settings.socialTwitter || '');
+  const [socialIg, setSocialIg] = useState(settings.socialInstagram || '');
+  const [socialYt, setSocialYt] = useState(settings.socialYoutube || '');
+  const [socialTt, setSocialTt] = useState(settings.socialTiktok || '');
+  const [isSocialsEnabled, setIsSocialsEnabled] = useState(settings.socialsEnabled || false);
+
+  // Discord State
+  const [discordWebhook, setDiscordWebhook] = useState(settings.discordWebhookUrl || '');
+  const [isDiscordEnabled, setIsDiscordEnabled] = useState(settings.discordEnabled || false);
+
   const handleInstallClick = (appId: string) => {
       if (appId === 'crisp') {
           setCrispId(settings.crispWebsiteId || '');
@@ -34,8 +73,42 @@ const AppsPage = () => {
           setSheetUrl(settings.googleSheetsUrl || '');
           setIsSheetsEnabled(settings.googleSheetsEnabled || false);
           setConfiguringApp('google_sheets');
+      } else if (appId === 'shopify') {
+          setShopifyUrl(settings.shopifyStoreUrl || '');
+          setShopifyToken(settings.shopifyAccessToken || '');
+          setIsShopifyEnabled(settings.shopifyEnabled || false);
+          setConfiguringApp('shopify');
+      } else if (appId === 'woocommerce') {
+          setWooUrl(settings.wooCommerceUrl || '');
+          setWooKey(settings.wooCommerceConsumerKey || '');
+          setWooSecret(settings.wooCommerceConsumerSecret || '');
+          setIsWooEnabled(settings.wooCommerceEnabled || false);
+          setConfiguringApp('woocommerce');
+      } else if (appId === 'n8n') {
+          setN8nUrl(settings.n8nWebhookUrl || '');
+          setIsN8nEnabled(settings.n8nEnabled || false);
+          setConfiguringApp('n8n');
+      } else if (appId === 'ga') {
+          setGaId(settings.gaMeasurementId || '');
+          setIsGaEnabled(settings.gaEnabled || false);
+          setConfiguringApp('ga');
+      } else if (appId === 'helpspace') {
+          setHelpspaceId(settings.helpspaceWidgetId || '');
+          setIsHelpspaceEnabled(settings.helpspaceEnabled || false);
+          setConfiguringApp('helpspace');
+      } else if (appId === 'socials') {
+          setSocialFb(settings.socialFacebook || '');
+          setSocialTw(settings.socialTwitter || '');
+          setSocialIg(settings.socialInstagram || '');
+          setSocialYt(settings.socialYoutube || '');
+          setSocialTt(settings.socialTiktok || '');
+          setIsSocialsEnabled(settings.socialsEnabled || false);
+          setConfiguringApp('socials');
+      } else if (appId === 'discord') {
+          setDiscordWebhook(settings.discordWebhookUrl || '');
+          setIsDiscordEnabled(settings.discordEnabled || false);
+          setConfiguringApp('discord');
       } else if (appId === 'stripe' || appId === 'paypal' || appId === 'crypto' || appId === 'cashapp') {
-          // Redirect to payments settings for payment providers
           navigate('/settings?tab=payments');
       } else {
           alert(`Installation for ${appId} is coming soon!`);
@@ -43,20 +116,55 @@ const AppsPage = () => {
   };
 
   const handleSaveCrisp = () => {
-      saveSettings({
-          ...settings,
-          crispEnabled: isCrispEnabled,
-          crispWebsiteId: crispId
-      });
+      saveSettings({ ...settings, crispEnabled: isCrispEnabled, crispWebsiteId: crispId });
       setConfiguringApp(null);
   };
 
   const handleSaveSheets = () => {
-      saveSettings({
-          ...settings,
-          googleSheetsEnabled: isSheetsEnabled,
-          googleSheetsUrl: sheetUrl
+      saveSettings({ ...settings, googleSheetsEnabled: isSheetsEnabled, googleSheetsUrl: sheetUrl });
+      setConfiguringApp(null);
+  };
+
+  const handleSaveShopify = () => {
+      saveSettings({ ...settings, shopifyEnabled: isShopifyEnabled, shopifyStoreUrl: shopifyUrl, shopifyAccessToken: shopifyToken });
+      setConfiguringApp(null);
+  };
+
+  const handleSaveWoo = () => {
+      saveSettings({ ...settings, wooCommerceEnabled: isWooEnabled, wooCommerceUrl: wooUrl, wooCommerceConsumerKey: wooKey, wooCommerceConsumerSecret: wooSecret });
+      setConfiguringApp(null);
+  };
+
+  const handleSaveN8n = () => {
+      saveSettings({ ...settings, n8nEnabled: isN8nEnabled, n8nWebhookUrl: n8nUrl });
+      setConfiguringApp(null);
+  };
+
+  const handleSaveGa = () => {
+      saveSettings({ ...settings, gaEnabled: isGaEnabled, gaMeasurementId: gaId });
+      setConfiguringApp(null);
+  };
+
+  const handleSaveHelpspace = () => {
+      saveSettings({ ...settings, helpspaceEnabled: isHelpspaceEnabled, helpspaceWidgetId: helpspaceId });
+      setConfiguringApp(null);
+  };
+
+  const handleSaveSocials = () => {
+      saveSettings({ 
+          ...settings, 
+          socialsEnabled: isSocialsEnabled, 
+          socialFacebook: socialFb,
+          socialTwitter: socialTw,
+          socialInstagram: socialIg,
+          socialYoutube: socialYt,
+          socialTiktok: socialTt
       });
+      setConfiguringApp(null);
+  };
+
+  const handleSaveDiscord = () => {
+      saveSettings({ ...settings, discordEnabled: isDiscordEnabled, discordWebhookUrl: discordWebhook });
       setConfiguringApp(null);
   };
 
@@ -72,10 +180,18 @@ const AppsPage = () => {
             installed: settings.googleSheetsEnabled
         },
         { 
+            id: 'n8n', 
+            name: 'n8n', 
+            description: "Build advanced automation workflows. Trigger n8n webhooks on every new order.", 
+            icon: <div className="text-[#FF6D5A] font-bold text-xl">n8n</div>,
+            installed: settings.n8nEnabled
+        },
+        { 
             id: 'ga', 
             name: 'Google analytics', 
             description: "Analyze interactions with your storefront through Google's powerful analytics, directly embedded to Paylix.", 
-            icon: <div className="text-orange-500"><BarChart2 size={28} /></div> 
+            icon: <div className="text-orange-500"><BarChart2 size={28} /></div>,
+            installed: settings.gaEnabled
         },
         { 
             id: 'crisp', 
@@ -88,7 +204,8 @@ const AppsPage = () => {
             id: 'helpspace', 
             name: 'Helpspace', 
             description: "A well-rounded customer service tool that you and your customers will love! Benefit from team inbox, intuitive interface.", 
-            icon: <div className="text-purple-500"><LifeBuoy size={28} /></div> 
+            icon: <div className="text-purple-500"><LifeBuoy size={28} /></div>,
+            installed: settings.helpspaceEnabled
         },
         { 
             id: 'socials', 
@@ -99,19 +216,29 @@ const AppsPage = () => {
                 <div className="w-5 h-5 rounded-full bg-sky-500 flex items-center justify-center text-white text-[10px] border border-[#111111]"><Twitter size={12} fill="currentColor"/></div>
                 <div className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center text-white text-[10px] border border-[#111111]"><Youtube size={12} fill="currentColor"/></div>
                 <div className="w-5 h-5 rounded-full bg-blue-400 flex items-center justify-center text-white text-[10px] border border-[#111111]"><Send size={10} fill="currentColor"/></div>
-            </div> 
+            </div>,
+            installed: settings.socialsEnabled
         },
         { 
             id: 'discord', 
             name: 'Discord', 
             description: "Get product updates, stock alerts, notifications, all straight to your Discord server in minutes.", 
-            icon: <div className="text-[#5865F2]"><Gamepad2 size={28} /></div> 
+            icon: <div className="text-[#5865F2]"><Gamepad2 size={28} /></div>,
+            installed: settings.discordEnabled
         },
         { 
             id: 'shopify', 
             name: 'Shopify', 
-            description: "Shopify is a complete commerce platform that lets anyone start, grow, manage, and scale a business.", 
-            icon: <div className="text-[#96bf48]"><ShoppingBag size={28} /></div> 
+            description: "Sync orders with your Shopify store for centralized management and fulfillment.", 
+            icon: <div className="text-[#96bf48]"><ShoppingBag size={28} /></div>,
+            installed: settings.shopifyEnabled
+        },
+        { 
+            id: 'woocommerce', 
+            name: 'WooCommerce', 
+            description: "Connect your WordPress WooCommerce store to sync products and orders seamlessly.", 
+            icon: <div className="text-[#96588a] font-bold text-lg">Woo</div>,
+            installed: settings.wooCommerceEnabled
         },
       ]
     },
@@ -298,6 +425,363 @@ const AppsPage = () => {
                       >
                           <Save size={16} /> Save
                       </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Configuration Modal for Shopify */}
+      {configuringApp === 'shopify' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+              <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-md shadow-2xl p-6">
+                  <div className="flex justify-between items-center mb-6">
+                      <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-[#96bf48]/20 flex items-center justify-center text-[#96bf48] shadow-lg">
+                              <ShoppingBag size={24} />
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Configure Shopify</h3>
+                      </div>
+                      <button onClick={() => setConfiguringApp(null)} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95"><X size={20}/></button>
+                  </div>
+
+                  <div className="space-y-6">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800">
+                          <span className="font-bold text-sm text-gray-900 dark:text-white">Sync Orders</span>
+                          <button 
+                             onClick={() => setIsShopifyEnabled(!isShopifyEnabled)}
+                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isShopifyEnabled ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}
+                          >
+                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ${isShopifyEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
+                      </div>
+
+                      <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Store URL</label>
+                          <input 
+                              type="text" 
+                              value={shopifyUrl}
+                              onChange={(e) => setShopifyUrl(e.target.value)}
+                              placeholder="my-store.myshopify.com"
+                              className="w-full px-4 py-3 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] outline-none font-mono text-sm"
+                          />
+                      </div>
+                      <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Admin Access Token</label>
+                          <input 
+                              type="password" 
+                              value={shopifyToken}
+                              onChange={(e) => setShopifyToken(e.target.value)}
+                              placeholder="shpat_..."
+                              className="w-full px-4 py-3 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] outline-none font-mono text-sm"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">Found in Shopify Admin {'>'} Apps {'>'} App development.</p>
+                      </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-8">
+                      <button onClick={() => setConfiguringApp(null)} className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95">Cancel</button>
+                      <button onClick={handleSaveShopify} className="flex-1 py-3 rounded-xl bg-[#f97316] text-white dark:text-black font-bold text-sm shadow-lg hover:bg-[#ea580c] transition-all active:scale-95 flex items-center justify-center gap-2"><Save size={16} /> Save</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Configuration Modal for WooCommerce */}
+      {configuringApp === 'woocommerce' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+              <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-md shadow-2xl p-6">
+                  <div className="flex justify-between items-center mb-6">
+                      <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-[#96588a]/20 flex items-center justify-center text-[#96588a] font-bold text-sm shadow-lg">Woo</div>
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Configure WooCommerce</h3>
+                      </div>
+                      <button onClick={() => setConfiguringApp(null)} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95"><X size={20}/></button>
+                  </div>
+
+                  <div className="space-y-6">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800">
+                          <span className="font-bold text-sm text-gray-900 dark:text-white">Sync Orders</span>
+                          <button 
+                             onClick={() => setIsWooEnabled(!isWooEnabled)}
+                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isWooEnabled ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}
+                          >
+                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ${isWooEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
+                      </div>
+
+                      <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Site URL</label>
+                          <input 
+                              type="text" 
+                              value={wooUrl}
+                              onChange={(e) => setWooUrl(e.target.value)}
+                              placeholder="https://your-wordpress-site.com"
+                              className="w-full px-4 py-3 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] outline-none font-mono text-sm"
+                          />
+                      </div>
+                      <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Consumer Key</label>
+                          <input 
+                              type="text" 
+                              value={wooKey}
+                              onChange={(e) => setWooKey(e.target.value)}
+                              placeholder="ck_..."
+                              className="w-full px-4 py-3 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] outline-none font-mono text-sm"
+                          />
+                      </div>
+                      <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Consumer Secret</label>
+                          <input 
+                              type="password" 
+                              value={wooSecret}
+                              onChange={(e) => setWooSecret(e.target.value)}
+                              placeholder="cs_..."
+                              className="w-full px-4 py-3 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] outline-none font-mono text-sm"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">Generate keys in WooCommerce {'>'} Settings {'>'} Advanced {'>'} REST API.</p>
+                      </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-8">
+                      <button onClick={() => setConfiguringApp(null)} className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95">Cancel</button>
+                      <button onClick={handleSaveWoo} className="flex-1 py-3 rounded-xl bg-[#f97316] text-white dark:text-black font-bold text-sm shadow-lg hover:bg-[#ea580c] transition-all active:scale-95 flex items-center justify-center gap-2"><Save size={16} /> Save</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Configuration Modal for n8n */}
+      {configuringApp === 'n8n' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+              <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-md shadow-2xl p-6">
+                  <div className="flex justify-between items-center mb-6">
+                      <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-[#FF6D5A]/20 flex items-center justify-center text-[#FF6D5A] font-bold text-sm shadow-lg">n8n</div>
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Configure n8n</h3>
+                      </div>
+                      <button onClick={() => setConfiguringApp(null)} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95"><X size={20}/></button>
+                  </div>
+
+                  <div className="space-y-6">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800">
+                          <span className="font-bold text-sm text-gray-900 dark:text-white">Enable Webhook</span>
+                          <button 
+                             onClick={() => setIsN8nEnabled(!isN8nEnabled)}
+                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isN8nEnabled ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}
+                          >
+                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ${isN8nEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
+                      </div>
+
+                      <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Webhook URL</label>
+                          <input 
+                              type="text" 
+                              value={n8nUrl}
+                              onChange={(e) => setN8nUrl(e.target.value)}
+                              placeholder="https://your-n8n-instance.com/webhook/..."
+                              className="w-full px-4 py-3 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] outline-none font-mono text-sm"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">This URL will be called with a JSON payload whenever a new order is created.</p>
+                      </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-8">
+                      <button onClick={() => setConfiguringApp(null)} className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95">Cancel</button>
+                      <button onClick={handleSaveN8n} className="flex-1 py-3 rounded-xl bg-[#f97316] text-white dark:text-black font-bold text-sm shadow-lg hover:bg-[#ea580c] transition-all active:scale-95 flex items-center justify-center gap-2"><Save size={16} /> Save</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Configuration Modal for Google Analytics */}
+      {configuringApp === 'ga' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+              <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-md shadow-2xl p-6">
+                  <div className="flex justify-between items-center mb-6">
+                      <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 dark:text-orange-400 shadow-lg">
+                              <BarChart2 size={24} />
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Configure Analytics</h3>
+                      </div>
+                      <button onClick={() => setConfiguringApp(null)} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95"><X size={20}/></button>
+                  </div>
+
+                  <div className="space-y-6">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800">
+                          <span className="font-bold text-sm text-gray-900 dark:text-white">Enable Tracking</span>
+                          <button 
+                             onClick={() => setIsGaEnabled(!isGaEnabled)}
+                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isGaEnabled ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}
+                          >
+                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ${isGaEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
+                      </div>
+
+                      <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Measurement ID</label>
+                          <input 
+                              type="text" 
+                              value={gaId}
+                              onChange={(e) => setGaId(e.target.value)}
+                              placeholder="G-XXXXXXXXXX"
+                              className="w-full px-4 py-3 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] outline-none font-mono text-sm"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">Found in Google Analytics {'>'} Admin {'>'} Data Streams.</p>
+                      </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-8">
+                      <button onClick={() => setConfiguringApp(null)} className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95">Cancel</button>
+                      <button onClick={handleSaveGa} className="flex-1 py-3 rounded-xl bg-[#f97316] text-white dark:text-black font-bold text-sm shadow-lg hover:bg-[#ea580c] transition-all active:scale-95 flex items-center justify-center gap-2"><Save size={16} /> Save</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Configuration Modal for Helpspace */}
+      {configuringApp === 'helpspace' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+              <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-md shadow-2xl p-6">
+                  <div className="flex justify-between items-center mb-6">
+                      <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 shadow-lg">
+                              <LifeBuoy size={24} />
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Configure Helpspace</h3>
+                      </div>
+                      <button onClick={() => setConfiguringApp(null)} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95"><X size={20}/></button>
+                  </div>
+
+                  <div className="space-y-6">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800">
+                          <span className="font-bold text-sm text-gray-900 dark:text-white">Enable Widget</span>
+                          <button 
+                             onClick={() => setIsHelpspaceEnabled(!isHelpspaceEnabled)}
+                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isHelpspaceEnabled ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}
+                          >
+                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ${isHelpspaceEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
+                      </div>
+
+                      <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Widget ID</label>
+                          <input 
+                              type="text" 
+                              value={helpspaceId}
+                              onChange={(e) => setHelpspaceId(e.target.value)}
+                              placeholder="e.g. ws-..."
+                              className="w-full px-4 py-3 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] outline-none font-mono text-sm"
+                          />
+                      </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-8">
+                      <button onClick={() => setConfiguringApp(null)} className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95">Cancel</button>
+                      <button onClick={handleSaveHelpspace} className="flex-1 py-3 rounded-xl bg-[#f97316] text-white dark:text-black font-bold text-sm shadow-lg hover:bg-[#ea580c] transition-all active:scale-95 flex items-center justify-center gap-2"><Save size={16} /> Save</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Configuration Modal for Socials */}
+      {configuringApp === 'socials' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+              <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-lg shadow-2xl p-6 flex flex-col max-h-[90vh]">
+                  <div className="flex justify-between items-center mb-6">
+                      <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-lg">
+                              <Share2 size={24} />
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Configure Socials</h3>
+                      </div>
+                      <button onClick={() => setConfiguringApp(null)} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95"><X size={20}/></button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto space-y-5 px-1">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800">
+                          <span className="font-bold text-sm text-gray-900 dark:text-white">Show Social Icons</span>
+                          <button 
+                             onClick={() => setIsSocialsEnabled(!isSocialsEnabled)}
+                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isSocialsEnabled ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}
+                          >
+                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ${isSocialsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
+                      </div>
+
+                      <div className="space-y-4">
+                          {[
+                              { label: 'Facebook', icon: <Facebook size={16} />, val: socialFb, set: setSocialFb },
+                              { label: 'Twitter / X', icon: <Twitter size={16} />, val: socialTw, set: setSocialTw },
+                              { label: 'Instagram', icon: <div className="font-bold text-xs">IG</div>, val: socialIg, set: setSocialIg },
+                              { label: 'YouTube', icon: <Youtube size={16} />, val: socialYt, set: setSocialYt },
+                              { label: 'TikTok', icon: <div className="font-bold text-xs">TT</div>, val: socialTt, set: setSocialTt },
+                          ].map((s, i) => (
+                              <div key={i}>
+                                  <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                                      {s.icon} {s.label}
+                                  </label>
+                                  <input 
+                                      type="text" 
+                                      value={s.val}
+                                      onChange={(e) => s.set(e.target.value)}
+                                      placeholder={`https://${s.label.toLowerCase().split(' ')[0]}.com/...`}
+                                      className="w-full px-4 py-2.5 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] outline-none text-sm"
+                                  />
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
+                      <button onClick={() => setConfiguringApp(null)} className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95">Cancel</button>
+                      <button onClick={handleSaveSocials} className="flex-1 py-3 rounded-xl bg-[#f97316] text-white dark:text-black font-bold text-sm shadow-lg hover:bg-[#ea580c] transition-all active:scale-95 flex items-center justify-center gap-2"><Save size={16} /> Save</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Configuration Modal for Discord */}
+      {configuringApp === 'discord' && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+              <div className="bg-white dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-md shadow-2xl p-6">
+                  <div className="flex justify-between items-center mb-6">
+                      <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-[#5865F2]/20 flex items-center justify-center text-[#5865F2] shadow-lg">
+                              <Gamepad2 size={24} />
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Configure Discord</h3>
+                      </div>
+                      <button onClick={() => setConfiguringApp(null)} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95"><X size={20}/></button>
+                  </div>
+
+                  <div className="space-y-6">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800">
+                          <span className="font-bold text-sm text-gray-900 dark:text-white">Enable Notifications</span>
+                          <button 
+                             onClick={() => setIsDiscordEnabled(!isDiscordEnabled)}
+                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isDiscordEnabled ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}
+                          >
+                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition transition-transform ${isDiscordEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
+                      </div>
+
+                      <div className="space-y-2">
+                          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Webhook URL</label>
+                          <input 
+                              type="text" 
+                              value={discordWebhook}
+                              onChange={(e) => setDiscordWebhook(e.target.value)}
+                              placeholder="https://discord.com/api/webhooks/..."
+                              className="w-full px-4 py-3 bg-white dark:bg-[#0a0a0a] border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] outline-none font-mono text-sm"
+                          />
+                      </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-8">
+                      <button onClick={() => setConfiguringApp(null)} className="flex-1 py-3 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95">Cancel</button>
+                      <button onClick={handleSaveDiscord} className="flex-1 py-3 rounded-xl bg-[#f97316] text-white dark:text-black font-bold text-sm shadow-lg hover:bg-[#ea580c] transition-all active:scale-95 flex items-center justify-center gap-2"><Save size={16} /> Save</button>
                   </div>
               </div>
           </div>

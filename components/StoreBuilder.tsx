@@ -10,7 +10,7 @@ import {
   Sun, Moon, Link as LinkIcon, Check, DollarSign, ExternalLink, Copy, Sparkles,
   Loader2, Trash2, Package, RefreshCw, CreditCard, Calendar, PieChart, Eye,
   Wallet, Landmark, Banknote, ArrowUp, ArrowDown, ChevronDown, Globe, Zap, Edit2, User,
-  ArrowRight
+  ArrowRight, Ghost
 } from 'lucide-react';
 
 const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
@@ -20,7 +20,7 @@ const StoreBuilder = () => {
   const navigate = useNavigate();
   const { checkouts, updateCheckout, settings } = useContext(AppContext);
   
-  const [activeTab, setActiveTab] = useState<'settings' | 'products' | 'upsells' | 'thankyou'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'products' | 'upsells' | 'ghost' | 'thankyou'>('settings');
   const [previewMode, setPreviewMode] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   
   const [config, setConfig] = useState<CheckoutPage | null>(null);
@@ -332,6 +332,8 @@ const StoreBuilder = () => {
           }
           setActiveTab('upsells');
       } else if (activeTab === 'upsells') {
+          setActiveTab('ghost');
+      } else if (activeTab === 'ghost') {
           setActiveTab('thankyou');
       } else if (activeTab === 'thankyou') {
           const check = validatePublish();
@@ -483,6 +485,7 @@ const StoreBuilder = () => {
              <button onClick={() => setActiveTab('settings')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all active:scale-95 ${activeTab === 'settings' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}><Settings size={16} /> Settings</button>
              <button onClick={() => setActiveTab('products')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all active:scale-95 ${activeTab === 'products' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}><ShoppingBag size={16} /> Products</button>
              <button onClick={() => setActiveTab('upsells')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all active:scale-95 ${activeTab === 'upsells' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}><Zap size={16} /> Upsells</button>
+             <button onClick={() => setActiveTab('ghost')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all active:scale-95 ${activeTab === 'ghost' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}><Ghost size={16} /> Ghost</button>
              <button onClick={() => setActiveTab('thankyou')} className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all active:scale-95 ${activeTab === 'thankyou' ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}><CheckCircle2 size={16} /> Thank You Page</button>
           </div>
           <button onClick={handleOpenLive} className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95"><Eye size={16} /> Live Preview</button>
@@ -496,7 +499,7 @@ const StoreBuilder = () => {
 
           {activeTab === 'settings' && (
              <div className="p-6 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-800 h-full">
-                
+                {/* ... existing settings content ... */}
                 {/* General Settings Card */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -540,7 +543,6 @@ const StoreBuilder = () => {
                         <User size={16} className="text-[#f97316]" /> Customer Info
                     </h3>
                     <div className="bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm space-y-4">
-                        
                         {/* Full Name Toggle */}
                         <div 
                             className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer group ${config.collectFullName === true ? 'bg-orange-50 dark:bg-orange-900/10 border-[#f97316]/30' : 'bg-gray-50 dark:bg-[#161616] border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
@@ -559,12 +561,10 @@ const StoreBuilder = () => {
                                     </div>
                                 </div>
                             </div>
-                            
                             <div className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#f97316] ${config.collectFullName === true ? 'bg-[#f97316]' : 'bg-gray-200 dark:bg-gray-700'}`}>
                                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition transition-transform ${config.collectFullName === true ? 'translate-x-6' : 'translate-x-1'}`} />
                             </div>
                         </div>
-
                         {/* Phone Number Toggle */}
                         <div 
                             className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer group ${config.collectPhoneNumber === true ? 'bg-orange-50 dark:bg-orange-900/10 border-[#f97316]/30' : 'bg-gray-50 dark:bg-[#161616] border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
@@ -583,7 +583,6 @@ const StoreBuilder = () => {
                                     </div>
                                 </div>
                             </div>
-                            
                             <div className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#f97316] ${config.collectPhoneNumber === true ? 'bg-[#f97316]' : 'bg-gray-200 dark:bg-gray-700'}`}>
                                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition transition-transform ${config.collectPhoneNumber === true ? 'translate-x-6' : 'translate-x-1'}`} />
                             </div>
@@ -620,7 +619,6 @@ const StoreBuilder = () => {
                                 </div>
                             </div>
                         </div>
-
                         {/* Theme */}
                         <div>
                             <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Checkout Theme</label>
@@ -647,7 +645,6 @@ const StoreBuilder = () => {
                                 </button>
                             </div>
                         </div>
-
                         {/* Logo Scale */}
                         <div>
                             <div className="flex justify-between items-center mb-2">
@@ -675,8 +672,7 @@ const StoreBuilder = () => {
                             Configure which payment gateways are shown on this checkout. 
                             <br/><span className="opacity-70">(Only globally enabled gateways can be added)</span>
                         </p>
-                        
-                        {/* Active Methods List - Reordered */}
+                        {/* Active Methods List */}
                         <div className="space-y-2 mb-6">
                             {config.paymentMethods.map((method, index) => {
                                 const isEnabledGlobally = isMethodEnabledGlobally(method);
@@ -707,7 +703,6 @@ const StoreBuilder = () => {
                                 </div>
                             )}
                         </div>
-
                         {/* Available Methods */}
                         {availableMethodsToAdd.length > 0 && (
                             <div>
@@ -732,7 +727,6 @@ const StoreBuilder = () => {
                         )}
                     </div>
                 </div>
-
              </div>
           )}
 
@@ -823,6 +817,99 @@ const StoreBuilder = () => {
                               </div>
                           </div>
                       ))}
+                  </div>
+              </div>
+          )}
+
+          {activeTab === 'ghost' && (
+              <div className="flex flex-col h-full">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+                      <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                          <Ghost size={16} className="text-[#f97316]" /> Ghost Referrer
+                      </h2>
+                      <p className="text-xs text-gray-500 mt-1">Simulate traffic sources and campaign data.</p>
+                  </div>
+                  <div className="p-6 space-y-6 overflow-y-auto">
+                      
+                      {/* Enable Toggle */}
+                      <div 
+                          className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer ${config.ghost?.enabled ? 'bg-orange-50 dark:bg-orange-900/10 border-[#f97316]/30' : 'bg-gray-50 dark:bg-[#161616] border-gray-200 dark:border-gray-700'}`}
+                          onClick={() => setConfig({ ...config, ghost: { ...config.ghost, enabled: !(config.ghost?.enabled), referrerMode: config.ghost?.referrerMode || 'none' } })}
+                      >
+                          <div>
+                              <div className="text-sm font-bold text-gray-900 dark:text-white">Enable Ghost Mode</div>
+                              <div className="text-xs text-gray-500 mt-0.5">Override tracking data for this checkout.</div>
+                          </div>
+                          <div className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${config.ghost?.enabled ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${config.ghost?.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </div>
+                      </div>
+
+                      {config.ghost?.enabled && (
+                          <div className="space-y-6 animate-in fade-in slide-in-from-top-2">
+                              {/* Referrer Source */}
+                              <div>
+                                  <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Referrer Source</label>
+                                  <div className="grid grid-cols-2 gap-2">
+                                      {['google', 'facebook', 'tiktok', 'custom'].map(source => (
+                                          <button
+                                              key={source}
+                                              onClick={() => setConfig({ ...config, ghost: { ...config.ghost!, referrerMode: source as any } })}
+                                              className={`py-2 px-3 rounded-lg text-xs font-bold capitalize transition-all border ${config.ghost?.referrerMode === source ? 'bg-white dark:bg-gray-800 text-[#f97316] border-[#f97316] shadow-sm' : 'bg-gray-50 dark:bg-[#161616] border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+                                          >
+                                              {source}
+                                          </button>
+                                      ))}
+                                  </div>
+                                  {config.ghost?.referrerMode === 'custom' && (
+                                      <input 
+                                          type="text" 
+                                          placeholder="https://example.com"
+                                          value={config.ghost.customReferrer || ''}
+                                          onChange={(e) => setConfig({ ...config, ghost: { ...config.ghost!, customReferrer: e.target.value } })}
+                                          className="mt-2 w-full px-3 py-2 bg-white dark:bg-black border border-gray-300 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-[#f97316]"
+                                      />
+                                  )}
+                              </div>
+
+                              {/* UTM Parameters */}
+                              <div>
+                                  <label className="block text-xs font-bold text-gray-500 uppercase mb-3">UTM Parameters</label>
+                                  <div className="space-y-3">
+                                      <div>
+                                          <label className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Source</label>
+                                          <input 
+                                              type="text" 
+                                              placeholder="e.g. facebook"
+                                              value={config.ghost?.utmSource || ''}
+                                              onChange={(e) => setConfig({ ...config, ghost: { ...config.ghost!, utmSource: e.target.value } })}
+                                              className="w-full px-3 py-2 bg-gray-50 dark:bg-[#161616] border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-[#f97316]"
+                                          />
+                                      </div>
+                                      <div>
+                                          <label className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Medium</label>
+                                          <input 
+                                              type="text" 
+                                              placeholder="e.g. cpc"
+                                              value={config.ghost?.utmMedium || ''}
+                                              onChange={(e) => setConfig({ ...config, ghost: { ...config.ghost!, utmMedium: e.target.value } })}
+                                              className="w-full px-3 py-2 bg-gray-50 dark:bg-[#161616] border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-[#f97316]"
+                                          />
+                                      </div>
+                                      <div>
+                                          <label className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Campaign</label>
+                                          <input 
+                                              type="text" 
+                                              placeholder="e.g. summer_sale"
+                                              value={config.ghost?.utmCampaign || ''}
+                                              onChange={(e) => setConfig({ ...config, ghost: { ...config.ghost!, utmCampaign: e.target.value } })}
+                                              className="w-full px-3 py-2 bg-gray-50 dark:bg-[#161616] border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:border-[#f97316]"
+                                          />
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      )}
                   </div>
               </div>
           )}

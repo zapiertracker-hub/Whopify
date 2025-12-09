@@ -3,6 +3,8 @@
 
 
 
+
+
 import React, { useState, useContext, useEffect } from 'react';
 import { AppContext } from '../AppContext';
 import { useSearchParams } from 'react-router-dom';
@@ -19,7 +21,7 @@ import AppsPage from './AppsPage';
 import DomainsPage from './DomainsPage';
 import { StripeAccount } from '../types';
 
-type Tab = 'general' | 'account' | 'security' | 'billing' | 'payments' | 'portal' | 'domains' | 'marketing' | 'apps' | 'updates';
+type Tab = 'general' | 'account' | 'billing' | 'payments' | 'portal' | 'domains' | 'marketing' | 'apps' | 'updates';
 
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : '';
 
@@ -53,10 +55,9 @@ const SettingsPage = () => {
 
   const tabs = [
     { id: 'general', label: 'General', icon: Building, desc: 'Store details & location' },
-    { id: 'account', label: 'Account', icon: User, desc: 'Profile & team' },
+    { id: 'account', label: 'Account & Security', icon: User, desc: 'Profile, team & security' },
     { id: 'billing', label: 'Billing', icon: CreditCard, desc: 'Plan & invoices' },
     { id: 'payments', label: 'Payments', icon: Wallet, desc: 'Gateways & currency' },
-    { id: 'security', label: 'Security', icon: ShieldCheck, desc: 'Password & 2FA' },
     { id: 'portal', label: 'Portal', icon: Store, desc: 'Customer self-serve' },
     { id: 'domains', label: 'Domains', icon: Globe, desc: 'Custom domain' },
     { id: 'marketing', label: 'Marketing', icon: Megaphone, desc: 'Email & affiliates' },
@@ -320,7 +321,7 @@ const SettingsPage = () => {
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white tracking-tight">Settings</h1>
           <p className="text-gray-500 dark:text-gray-400 text-base mt-2">Manage your store configuration and preferences.</p>
         </div>
-        {(activeTab === 'general' || activeTab === 'payments' || activeTab === 'account' || activeTab === 'portal' || activeTab === 'security' || activeTab === 'billing') && (
+        {(activeTab === 'general' || activeTab === 'payments' || activeTab === 'account' || activeTab === 'portal' || activeTab === 'billing') && (
            <div className="hidden md:block">{renderSaveButton()}</div>
         )}
       </div>
@@ -398,17 +399,20 @@ const SettingsPage = () => {
             </div>
           )}
 
-          {/* Account Tab */}
+          {/* Account Tab (Merged with Security) */}
           {activeTab === 'account' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              
+              {/* Profile Section */}
               <div className="bg-white dark:bg-[#09090b] rounded-2xl border border-gray-200 dark:border-white/10 p-6 md:p-8 shadow-sm">
                 <div className="flex items-center gap-3 mb-8">
                     <div className="p-2 bg-gray-100 dark:bg-white/5 rounded-lg text-gray-600 dark:text-gray-300"><User size={24} /></div>
                     <div><h3 className="text-xl font-bold text-gray-900 dark:text-white">Profile</h3><p className="text-sm text-gray-500 dark:text-gray-400">Manage your personal information.</p></div>
                 </div>
                 
-                <div className="flex flex-col md:flex-row items-start gap-8 mb-8">
+                <div className="flex flex-col md:flex-row items-start gap-8">
                      <div className="flex flex-col items-center gap-3">
+                         {/* Avatar Upload */}
                          <label className="relative cursor-pointer group">
                              <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-gray-900 to-gray-700 dark:from-[#222] dark:to-[#111] flex items-center justify-center text-white text-4xl font-serif italic border-4 border-gray-100 dark:border-white/5 shadow-xl overflow-hidden transition-all group-hover:scale-105">
                                 {profileAvatar ? <img src={profileAvatar} alt="Profile" className="w-full h-full object-cover" /> : profileName.charAt(0)}
@@ -443,6 +447,71 @@ const SettingsPage = () => {
                 </div>
               </div>
 
+              {/* Security Section (Merged) */}
+              <div className="bg-white dark:bg-[#09090b] rounded-2xl border border-gray-200 dark:border-white/10 p-6 md:p-8 shadow-sm">
+                  <div className="flex items-center gap-3 mb-8">
+                      <div className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg"><Shield size={24} /></div>
+                      <div><h3 className="text-xl font-bold text-gray-900 dark:text-white">Security</h3><p className="text-sm text-gray-500 dark:text-gray-400">Password & Authentication.</p></div>
+                  </div>
+
+                  <div className="space-y-6">
+                      {/* Password Change */}
+                      <div className="p-5 bg-gray-50 dark:bg-[#121214] rounded-xl border border-gray-100 dark:border-white/5 space-y-4">
+                          <div className="flex items-center gap-4 mb-2">
+                              <div className="p-2 bg-white dark:bg-[#09090b] rounded-lg text-gray-500 shadow-sm"><Key size={20} /></div>
+                              <div>
+                                  <h4 className="font-bold text-gray-900 dark:text-white text-sm">Change Password</h4>
+                                  <p className="text-xs text-gray-500 mt-0.5">Ensure your account uses a strong password.</p>
+                              </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <input type="password" placeholder="New Password" className="px-4 py-2 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-lg text-sm outline-none focus:border-[#f97316]" />
+                              <input type="password" placeholder="Confirm Password" className="px-4 py-2 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-lg text-sm outline-none focus:border-[#f97316]" />
+                          </div>
+                          <div className="flex justify-end">
+                              <button className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-black rounded-lg text-xs font-bold hover:bg-black dark:hover:bg-gray-200 transition-colors">Update Password</button>
+                          </div>
+                      </div>
+
+                      {/* 2FA */}
+                      <div className="flex items-center justify-between p-5 bg-gray-50 dark:bg-[#121214] rounded-xl border border-gray-100 dark:border-white/5">
+                          <div className="flex items-center gap-4">
+                              <div className="p-2 bg-white dark:bg-[#09090b] rounded-lg text-gray-500 shadow-sm"><Smartphone size={20} /></div>
+                              <div>
+                                  <h4 className="font-bold text-gray-900 dark:text-white text-sm">Two-Factor Authentication</h4>
+                                  <p className="text-xs text-gray-500 mt-0.5">Secure your account with 2FA.</p>
+                              </div>
+                          </div>
+                          <button onClick={() => updateSetting('twoFactorEnabled', !localSettings.twoFactorEnabled)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${localSettings.twoFactorEnabled ? 'bg-[#f97316]' : 'bg-gray-200 dark:bg-[#222]'}`}>
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${localSettings.twoFactorEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                          </button>
+                      </div>
+
+                      {/* Active Sessions */}
+                      <div>
+                          <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4 pl-1">Active Sessions</h4>
+                          <div className="space-y-3">
+                              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-[#121214] transition-colors group">
+                                  <div className="flex items-center gap-3">
+                                      <Monitor size={18} className="text-green-500" />
+                                      <div>
+                                          <p className="text-sm font-bold text-gray-900 dark:text-white">Macbook Pro <span className="font-normal text-gray-500">(This device)</span></p>
+                                          <p className="text-xs text-gray-500">Casablanca, MA • Chrome</p>
+                                      </div>
+                                  </div>
+                                  <span className="text-[10px] font-bold text-green-600 bg-green-100 dark:bg-green-500/10 px-2 py-1 rounded border border-green-200 dark:border-green-500/20">Active</span>
+                              </div>
+                          </div>
+                          <div className="mt-6 border-t border-gray-100 dark:border-white/5 pt-6">
+                              <button className="text-sm font-bold text-red-500 hover:text-red-600 flex items-center gap-2">
+                                  <LogOut size={16} /> Log out all other devices
+                              </button>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              {/* Team Section */}
               <div className="bg-white dark:bg-[#09090b] rounded-2xl border border-gray-200 dark:border-white/10 p-6 md:p-8 shadow-sm">
                  <div className="flex justify-between items-start mb-6">
                     <div><h3 className="text-xl font-bold text-gray-900 dark:text-white">Team Members</h3><p className="text-sm text-gray-500 dark:text-gray-400">Collaborate with your team.</p></div>
@@ -907,75 +976,6 @@ const SettingsPage = () => {
                     </div>
                   </div>
                 )}
-              </div>
-            </div>
-          )}
-
-          {/* Security Tab */}
-          {activeTab === 'security' && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-white dark:bg-[#09090b] rounded-2xl border border-gray-200 dark:border-white/10 p-6 md:p-8 shadow-sm">
-                  <div className="flex items-center gap-3 mb-8">
-                      <div className="p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg"><Shield size={24} /></div>
-                      <div><h3 className="text-xl font-bold text-gray-900 dark:text-white">Security</h3><p className="text-sm text-gray-500 dark:text-gray-400">Protect your account and access.</p></div>
-                  </div>
-
-                  <div className="space-y-6">
-                      <div className="flex items-center justify-between p-5 bg-gray-50 dark:bg-[#121214] rounded-xl border border-gray-100 dark:border-white/5">
-                          <div className="flex items-center gap-4">
-                              <div className="p-2 bg-white dark:bg-[#09090b] rounded-lg text-gray-500 shadow-sm"><Smartphone size={20} /></div>
-                              <div>
-                                  <h4 className="font-bold text-gray-900 dark:text-white text-sm">Two-Factor Authentication</h4>
-                                  <p className="text-xs text-gray-500 mt-0.5">Secure your account with 2FA.</p>
-                              </div>
-                          </div>
-                          <button onClick={() => updateSetting('twoFactorEnabled', !localSettings.twoFactorEnabled)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${localSettings.twoFactorEnabled ? 'bg-[#f97316]' : 'bg-gray-200 dark:bg-[#222]'}`}>
-                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${localSettings.twoFactorEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                          </button>
-                      </div>
-
-                      <div className="flex items-center justify-between p-5 bg-gray-50 dark:bg-[#121214] rounded-xl border border-gray-100 dark:border-white/5">
-                          <div className="flex items-center gap-4">
-                              <div className="p-2 bg-white dark:bg-[#09090b] rounded-lg text-gray-500 shadow-sm"><Key size={20} /></div>
-                              <div>
-                                  <h4 className="font-bold text-gray-900 dark:text-white text-sm">Password</h4>
-                                  <p className="text-xs text-gray-500 mt-0.5">Last changed 30 days ago.</p>
-                              </div>
-                          </div>
-                          <button className="px-4 py-2 bg-white dark:bg-[#09090b] border border-gray-200 dark:border-white/10 rounded-lg text-xs font-bold hover:bg-gray-50 dark:hover:bg-[#222] transition-colors text-gray-700 dark:text-gray-300">Change</button>
-                      </div>
-
-                      <div>
-                          <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4 pl-1">Active Sessions</h4>
-                          <div className="space-y-3">
-                              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-[#121214] transition-colors group">
-                                  <div className="flex items-center gap-3">
-                                      <Monitor size={18} className="text-green-500" />
-                                      <div>
-                                          <p className="text-sm font-bold text-gray-900 dark:text-white">Macbook Pro <span className="font-normal text-gray-500">(This device)</span></p>
-                                          <p className="text-xs text-gray-500">Casablanca, MA • Chrome</p>
-                                      </div>
-                                  </div>
-                                  <span className="text-[10px] font-bold text-green-600 bg-green-100 dark:bg-green-500/10 px-2 py-1 rounded border border-green-200 dark:border-green-500/20">Active</span>
-                              </div>
-                              <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-[#121214] transition-colors group opacity-70 hover:opacity-100">
-                                  <div className="flex items-center gap-3">
-                                      <Smartphone size={18} className="text-gray-400" />
-                                      <div>
-                                          <p className="text-sm font-bold text-gray-900 dark:text-white">iPhone 14 Pro</p>
-                                          <p className="text-xs text-gray-500">Paris, FR • Safari • 2h ago</p>
-                                      </div>
-                                  </div>
-                                  <button className="text-xs font-bold text-red-500 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">Revoke</button>
-                              </div>
-                          </div>
-                          <div className="mt-6 border-t border-gray-100 dark:border-white/5 pt-6">
-                              <button className="text-sm font-bold text-red-500 hover:text-red-600 flex items-center gap-2">
-                                  <LogOut size={16} /> Log out all other devices
-                              </button>
-                          </div>
-                      </div>
-                  </div>
               </div>
             </div>
           )}
