@@ -1,3 +1,4 @@
+
 import React, { useState, useContext, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppContext } from '../AppContext';
@@ -498,235 +499,201 @@ const StoreBuilder = () => {
         <div className="w-full lg:w-96 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 flex flex-col shrink-0">
 
           {activeTab === 'settings' && (
-             <div className="p-6 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-800 h-full">
-                {/* ... existing settings content ... */}
-                {/* General Settings Card */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <Settings size={16} className="text-[#f97316]" /> General
+             <div className="p-6 space-y-10 overflow-y-auto h-full scrollbar-none">
+                
+                {/* General Settings */}
+                <section className="space-y-4">
+                    <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                        <Settings size={14} /> General
                     </h3>
-                    <div className="bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm space-y-5">
-                        {/* Internal Name */}
+                    <div className="space-y-4">
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Internal Name</label>
+                            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Internal Name</label>
                             <input 
                                 type="text" 
                                 value={config.name} 
                                 onChange={(e) => setConfig({...config, name: e.target.value})} 
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-[#161616] border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:border-[#f97316] focus:ring-1 focus:ring-[#f97316] outline-none transition-all placeholder-gray-400"
-                                placeholder="e.g. Black Friday Sale"
+                                className="w-full px-3 py-2.5 bg-white dark:bg-[#111] border border-gray-200 dark:border-gray-800 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] transition-all outline-none"
+                                placeholder="e.g. Summer Sale Checkout"
                             />
                         </div>
-                        {/* Language */}
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Checkout Language</label>
+                            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Language</label>
                             <div className="relative">
                                 <select 
                                     value={config.language || 'en'} 
                                     onChange={(e) => setConfig({...config, language: e.target.value as any})} 
-                                    className="w-full px-4 py-3 bg-gray-50 dark:bg-[#161616] border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:border-[#f97316] focus:ring-1 focus:ring-[#f97316] outline-none appearance-none cursor-pointer"
+                                    className="w-full px-3 py-2.5 bg-white dark:bg-[#111] border border-gray-200 dark:border-gray-800 rounded-lg text-sm text-gray-900 dark:text-white appearance-none focus:ring-2 focus:ring-[#f97316]/20 focus:border-[#f97316] transition-all outline-none cursor-pointer"
                                 >
                                     <option value="en">English (US)</option>
                                     <option value="fr">Français (French)</option>
                                 </select>
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                    <ChevronDown size={14} />
-                                </div>
+                                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                             </div>
                         </div>
                     </div>
-                </div>
+                </section>
+
+                <hr className="border-gray-100 dark:border-gray-800" />
 
                 {/* Customer Info */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <User size={16} className="text-[#f97316]" /> Customer Info
+                <section className="space-y-4">
+                    <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                        <User size={14} /> Customer Info
                     </h3>
-                    <div className="bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm space-y-4">
-                        {/* Full Name Toggle */}
-                        <div 
-                            className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer group ${config.collectFullName === true ? 'bg-orange-50 dark:bg-orange-900/10 border-[#f97316]/30' : 'bg-gray-50 dark:bg-[#161616] border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
-                            onClick={() => setConfig({ ...config, collectFullName: !config.collectFullName })}
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className={`p-2.5 rounded-lg border transition-colors ${config.collectFullName === true ? 'bg-[#f97316] border-[#f97316] text-white shadow-md shadow-orange-500/20' : 'bg-white dark:bg-black border-gray-200 dark:border-gray-800 text-gray-500'}`}>
-                                    <User size={18} />
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-sm font-bold transition-colors ${config.collectFullName === true ? 'text-[#f97316]' : 'text-gray-900 dark:text-white'}`}>Full Name</span>
-                                        {config.collectFullName === true && (
-                                            <span className="text-[9px] font-extrabold bg-[#f97316] text-white px-1.5 py-0.5 rounded uppercase tracking-wider shadow-sm">Required</span>
-                                        )}
+                    <div className="grid grid-cols-1 gap-3">
+                        {[
+                            { label: 'Collect Full Name', key: 'collectFullName', icon: User },
+                            { label: 'Collect Phone Number', key: 'collectPhoneNumber', icon: Smartphone }
+                        ].map((field) => (
+                            <div 
+                                key={field.key}
+                                onClick={() => setConfig({ ...config, [field.key]: !config[field.key as keyof CheckoutPage] })}
+                                className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all ${config[field.key as keyof CheckoutPage] ? 'bg-orange-50/50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-900/30' : 'bg-white dark:bg-[#111] border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'}`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-lg ${config[field.key as keyof CheckoutPage] ? 'bg-orange-100 dark:bg-orange-900/30 text-[#f97316]' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
+                                        <field.icon size={16} />
                                     </div>
+                                    <span className={`text-sm font-medium ${config[field.key as keyof CheckoutPage] ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'}`}>{field.label}</span>
+                                </div>
+                                <div className={`relative w-9 h-5 rounded-full transition-colors duration-200 ease-in-out ${config[field.key as keyof CheckoutPage] ? 'bg-[#f97316]' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                                    <span className={`absolute left-[2px] top-[2px] inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${config[field.key as keyof CheckoutPage] ? 'translate-x-4' : 'translate-x-0'}`} />
                                 </div>
                             </div>
-                            <div className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#f97316] ${config.collectFullName === true ? 'bg-[#f97316]' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition transition-transform ${config.collectFullName === true ? 'translate-x-6' : 'translate-x-1'}`} />
-                            </div>
-                        </div>
-                        {/* Phone Number Toggle */}
-                        <div 
-                            className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer group ${config.collectPhoneNumber === true ? 'bg-orange-50 dark:bg-orange-900/10 border-[#f97316]/30' : 'bg-gray-50 dark:bg-[#161616] border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
-                            onClick={() => setConfig({ ...config, collectPhoneNumber: !config.collectPhoneNumber })}
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className={`p-2.5 rounded-lg border transition-colors ${config.collectPhoneNumber === true ? 'bg-[#f97316] border-[#f97316] text-white shadow-md shadow-orange-500/20' : 'bg-white dark:bg-black border-gray-200 dark:border-gray-800 text-gray-500'}`}>
-                                    <Smartphone size={18} />
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-sm font-bold transition-colors ${config.collectPhoneNumber === true ? 'text-[#f97316]' : 'text-gray-900 dark:text-white'}`}>Phone Number</span>
-                                        {config.collectPhoneNumber === true && (
-                                            <span className="text-[9px] font-extrabold bg-[#f97316] text-white px-1.5 py-0.5 rounded uppercase tracking-wider shadow-sm">Required</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                            <div className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#f97316] ${config.collectPhoneNumber === true ? 'bg-[#f97316]' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition transition-transform ${config.collectPhoneNumber === true ? 'translate-x-6' : 'translate-x-1'}`} />
-                            </div>
-                        </div>
+                        ))}
                     </div>
-                </div>
+                </section>
+
+                <hr className="border-gray-100 dark:border-gray-800" />
 
                 {/* Branding */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <Palette size={16} className="text-[#f97316]" /> Branding
+                <section className="space-y-5">
+                    <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                        <Palette size={14} /> Branding
                     </h3>
-                    <div className="bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm space-y-6">
-                        {/* Logo */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Checkout Logo</label>
-                            <div className="p-4 bg-gray-50 dark:bg-[#161616] rounded-xl border border-gray-200 dark:border-gray-700 flex items-center gap-4">
-                                <div className="w-16 h-16 bg-white dark:bg-black rounded-lg border border-gray-200 dark:border-gray-800 flex items-center justify-center overflow-hidden shrink-0 relative group shadow-sm">
-                                    {config.logo ? (
-                                        <img src={config.logo} alt="Logo" className="w-full h-full object-contain p-2" />
-                                    ) : (
-                                        <ImageIcon size={24} className="text-gray-300 dark:text-gray-600" />
-                                    )}
-                                </div>
-                                <div>
-                                    <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all active:scale-95 shadow-sm">
-                                        <Upload size={14} />
-                                        <span>Upload Logo</span>
-                                        <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
-                                    </label>
+                    
+                    {/* Logo & Scale */}
+                    <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-gray-800 rounded-xl p-4 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <label className="relative cursor-pointer group">
+                                    <div className={`w-16 h-16 rounded-xl border-2 border-dashed flex items-center justify-center overflow-hidden transition-colors ${config.logo ? 'border-transparent bg-white dark:bg-black' : 'border-gray-300 dark:border-gray-700 hover:border-[#f97316] dark:hover:border-[#f97316]'}`}>
+                                        {config.logo ? (
+                                            <img src={config.logo} alt="Store Logo" className="w-full h-full object-contain" />
+                                        ) : (
+                                            <Upload size={20} className="text-gray-400 group-hover:text-[#f97316] transition-colors" />
+                                        )}
+                                    </div>
+                                    <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
                                     {config.logo && (
-                                        <button onClick={() => setConfig({...config, logo: undefined})} className="ml-2 text-xs text-red-500 hover:underline">Remove</button>
+                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center text-white text-xs font-medium backdrop-blur-sm">
+                                            Change
+                                        </div>
+                                    )}
+                                </label>
+                                <div>
+                                    <div className="text-sm font-medium text-gray-900 dark:text-white">Store Logo</div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Recommended: 400x400px</div>
+                                    {config.logo && (
+                                        <button onClick={() => setConfig({...config, logo: undefined})} className="text-xs text-red-500 hover:text-red-600 mt-2 font-medium">Remove Logo</button>
                                     )}
                                 </div>
                             </div>
                         </div>
-                        {/* Theme */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Checkout Theme</label>
-                            <div className="grid grid-cols-2 gap-3">
-                                <button 
-                                    onClick={() => setConfig({...config, appearance: 'light'})}
-                                    className={`group relative p-4 rounded-xl border transition-all active:scale-[0.98] ${config.appearance === 'light' ? 'bg-white border-[#f97316] shadow-sm ring-1 ring-[#f97316]' : 'bg-gray-50 dark:bg-[#161616] border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
-                                >
-                                    <div className="flex flex-col items-center gap-2">
-                                        <Sun size={20} className={config.appearance === 'light' ? 'text-[#f97316]' : 'text-gray-400'} />
-                                        <span className={`text-sm font-bold ${config.appearance === 'light' ? 'text-gray-900' : 'text-gray-500 dark:text-gray-400'}`}>Light Mode</span>
-                                    </div>
-                                    {config.appearance === 'light' && <div className="absolute top-2 right-2 w-2 h-2 bg-[#f97316] rounded-full"></div>}
-                                </button>
-                                <button 
-                                    onClick={() => setConfig({...config, appearance: 'dark'})}
-                                    className={`group relative p-4 rounded-xl border transition-all active:scale-[0.98] ${config.appearance === 'dark' || !config.appearance ? 'bg-[#050505] border-[#f97316] shadow-sm ring-1 ring-[#f97316]' : 'bg-gray-50 dark:bg-[#161616] border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
-                                >
-                                    <div className="flex flex-col items-center gap-2">
-                                        <Moon size={20} className={config.appearance === 'dark' || !config.appearance ? 'text-[#f97316]' : 'text-gray-400'} />
-                                        <span className={`text-sm font-bold ${config.appearance === 'dark' || !config.appearance ? 'text-white' : 'text-gray-500 dark:text-gray-400'}`}>Dark Mode</span>
-                                    </div>
-                                    {(config.appearance === 'dark' || !config.appearance) && <div className="absolute top-2 right-2 w-2 h-2 bg-[#f97316] rounded-full"></div>}
-                                </button>
+
+                        {config.logo && (
+                            <div className="pt-2">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-xs font-medium text-gray-500">Logo Size</span>
+                                    <span className="text-xs font-mono text-gray-400">{config.logoScale || 100}%</span>
+                                </div>
+                                <input 
+                                    type="range" 
+                                    min="50" 
+                                    max="150" 
+                                    value={config.logoScale || 100} 
+                                    onChange={(e) => setConfig({...config, logoScale: parseInt(e.target.value)})} 
+                                    className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#f97316]" 
+                                />
                             </div>
-                        </div>
-                        {/* Logo Scale */}
-                        <div>
-                            <div className="flex justify-between items-center mb-2">
-                                <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Logo Size ({config.logoScale || 100}%)</label>
-                            </div>
-                            <input 
-                                type="range" 
-                                min="50" 
-                                max="150" 
-                                value={config.logoScale || 100} 
-                                onChange={(e) => setConfig({...config, logoScale: parseInt(e.target.value)})} 
-                                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#f97316]" 
-                            />
+                        )}
+                    </div>
+
+                    {/* Theme */}
+                    <div>
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Checkout Theme</label>
+                        <div className="grid grid-cols-2 gap-1 p-1 bg-gray-100 dark:bg-[#161616] rounded-xl border border-gray-200 dark:border-gray-800">
+                            <button 
+                                onClick={() => setConfig({...config, appearance: 'light'})}
+                                className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${config.appearance === 'light' ? 'bg-white dark:bg-[#222] text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}
+                            >
+                                <Sun size={16} /> Light
+                            </button>
+                            <button 
+                                onClick={() => setConfig({...config, appearance: 'dark'})}
+                                className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${config.appearance === 'dark' || !config.appearance ? 'bg-white dark:bg-[#222] text-gray-900 dark:text-white shadow-sm ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'}`}
+                            >
+                                <Moon size={16} /> Dark
+                            </button>
                         </div>
                     </div>
-                </div>
+                </section>
+
+                <hr className="border-gray-100 dark:border-gray-800" />
 
                 {/* Payment Methods */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <Wallet size={16} className="text-[#f97316]" /> Payment Methods
+                <section className="space-y-4 pb-4">
+                    <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                        <Wallet size={14} /> Payments
                     </h3>
-                    <div className="bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">
-                            Configure which payment gateways are shown on this checkout. 
-                            <br/><span className="opacity-70">(Only globally enabled gateways can be added)</span>
-                        </p>
-                        {/* Active Methods List */}
-                        <div className="space-y-2 mb-6">
-                            {config.paymentMethods.map((method, index) => {
-                                const isEnabledGlobally = isMethodEnabledGlobally(method);
-                                return (
-                                    <div key={method} className="group flex items-center justify-between p-3 bg-gray-50 dark:bg-[#161616] rounded-xl border border-gray-200 dark:border-gray-700 hover:border-[#f97316]/30 transition-all select-none">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`p-2 rounded-lg border ${isEnabledGlobally ? 'bg-white dark:bg-black border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300' : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30 text-red-500'}`}>
-                                                {getMethodIcon(method)}
-                                            </div>
-                                            <div>
-                                                <span className="text-sm font-bold text-gray-900 dark:text-white block">{getMethodName(method)}</span>
-                                                {!isEnabledGlobally && <span className="text-[10px] text-red-500 font-bold flex items-center gap-1">Requires Global Setup</span>}
-                                            </div>
+                    
+                    <div className="space-y-3">
+                        {config.paymentMethods.length === 0 && (
+                            <div className="text-center py-6 text-sm text-gray-500 border border-dashed border-gray-200 dark:border-gray-800 rounded-xl">
+                                No active payment methods.
+                            </div>
+                        )}
+                        
+                        <div className="space-y-2">
+                            {config.paymentMethods.map((method, index) => (
+                                <div key={method} className="group flex items-center justify-between p-3 bg-white dark:bg-[#111] border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm hover:border-[#f97316]/50 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded-lg text-gray-600 dark:text-gray-300">
+                                            {getMethodIcon(method)}
                                         </div>
-                                        <div className="flex items-center gap-1">
-                                            <div className="flex flex-col gap-0.5 mr-2 opacity-50 group-hover:opacity-100 transition-opacity">
-                                                <button disabled={index === 0} onClick={() => movePaymentMethod(index, 'up')} className="text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 p-0.5"><ArrowUp size={12} /></button>
-                                                <button disabled={index === config.paymentMethods.length - 1} onClick={() => movePaymentMethod(index, 'down')} className="text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 p-0.5"><ArrowDown size={12} /></button>
-                                            </div>
-                                            <button onClick={() => togglePaymentMethod(method)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"><X size={16} /></button>
-                                        </div>
+                                        <span className="text-sm font-medium text-gray-900 dark:text-white">{getMethodName(method)}</span>
                                     </div>
-                                );
-                            })}
-                            {config.paymentMethods.length === 0 && (
-                                <div className="text-center py-6 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-xl">
-                                    <p className="text-xs text-gray-500 font-medium">No payment methods active.</p>
+                                    <div className="flex items-center gap-1">
+                                        <div className="flex flex-col gap-0.5 mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => movePaymentMethod(index, 'up')} disabled={index === 0} className="text-gray-400 hover:text-[#f97316] disabled:opacity-20"><ArrowUp size={12} /></button>
+                                            <button onClick={() => movePaymentMethod(index, 'down')} disabled={index === config.paymentMethods.length - 1} className="text-gray-400 hover:text-[#f97316] disabled:opacity-20"><ArrowDown size={12} /></button>
+                                        </div>
+                                        <button onClick={() => togglePaymentMethod(method)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"><X size={14} /></button>
+                                    </div>
                                 </div>
-                            )}
+                            ))}
                         </div>
-                        {/* Available Methods */}
+
                         {availableMethodsToAdd.length > 0 && (
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Add Payment Method</label>
-                                <div className="grid grid-cols-1 gap-2">
+                            <div className="pt-2">
+                                <label className="block text-xs font-medium text-gray-500 mb-2">Add Payment Method</label>
+                                <div className="grid grid-cols-2 gap-2">
                                     {availableMethodsToAdd.map(method => (
                                         <button 
                                             key={method} 
-                                            onClick={() => togglePaymentMethod(method)} 
-                                            className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-[#161616] hover:border-gray-400 dark:hover:border-gray-600 transition-all text-left group"
+                                            onClick={() => togglePaymentMethod(method)}
+                                            className="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 hover:border-[#f97316] hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-[#f97316] transition-all text-xs font-medium text-gray-600 dark:text-gray-400"
                                         >
-                                            <div className="p-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300">
-                                                <Plus size={14} />
-                                            </div>
-                                            <span className="text-sm font-bold text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white">
-                                                {getMethodName(method)}
-                                            </span>
+                                            <Plus size={14} /> {getMethodName(method)}
                                         </button>
                                     ))}
                                 </div>
                             </div>
                         )}
                     </div>
-                </div>
+                </section>
+
              </div>
           )}
 
