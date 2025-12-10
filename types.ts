@@ -216,3 +216,33 @@ export interface Coupon {
   usageLimit?: number;
   expiryDate?: string;
 }
+
+export interface GhostLink {
+  id: string;
+  slug: string;
+  destination_urls: string[];
+  split_weights: number[];
+  redirect_type: '301' | '302' | '307' | 'cloak';
+  status: 'active' | 'disabled' | 'expired';
+  category: string;
+  tags: string[];
+  click_total: number;
+  click_today: number;
+  click_month: number;
+  schedule_start: string | null;
+  schedule_end: string | null;
+  click_limit: number | null;
+  geo_redirects: Record<string, string>;
+  device_redirects: Record<string, string>;
+  utm_enabled: boolean;
+  utm_params: {
+    source?: string;
+    medium?: string;
+    campaign?: string;
+    term?: string;
+    content?: string;
+  };
+  notification_email: boolean;
+  notification_whatsapp: boolean;
+  created_at: string;
+}

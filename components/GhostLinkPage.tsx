@@ -1,60 +1,23 @@
 
+
+
 import React, { useState, useContext, useEffect } from 'react';
 import { 
   Ghost, Link as LinkIcon, Copy, ArrowRight, Check, 
   Settings, Facebook, Globe, Search, Shuffle, ExternalLink,
   Activity, MousePointer2, Smartphone, ArrowUpRight, ArrowDownRight, MapPin,
   Calendar, Layers, Plus, Trash2, Split, Bell, AlertCircle, Play, Tag, MessageCircle, Mail,
-  List
+  List, Power, Loader2
 } from 'lucide-react';
 import { AppContext } from '../AppContext';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
 } from 'recharts';
-
-// --- Virtual Database Schema Definition ---
-
-interface GhostLink {
-  id: string;
-  slug: string;
-  destination_urls: string[];       // supports A/B split testing
-  split_weights: number[];          // array of integer percentages
-  
-  redirect_type: '301' | '302' | '307' | 'cloak';
-  
-  status: 'active' | 'disabled' | 'expired';
-  
-  category: string;
-  tags: string[];
-  
-  click_total: number;
-  click_today: number;
-  click_month: number;
-  
-  schedule_start: string | null;    // timestamp or null
-  schedule_end: string | null;      // timestamp or null
-  click_limit: number | null;       // integer or null
-  
-  geo_redirects: Record<string, string>; // country code : url
-  device_redirects: Record<string, string>; // device type : url
-  
-  utm_enabled: boolean;
-  utm_params: {
-    source?: string;
-    medium?: string;
-    campaign?: string;
-    term?: string;
-    content?: string;
-  };
-  
-  notification_email: boolean;
-  notification_whatsapp: boolean;
-  
-  created_at: string;
-}
+import { GhostLink } from '../types';
 
 // --- Constants & Helpers ---
+
+const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 
 const COUNTRIES = [
   { code: 'US', name: 'United States' },
@@ -105,15 +68,13 @@ const GhostLinkPage = () => {
   const { theme } = useContext(AppContext);
   
   // --- Component State ---
-  
   const [activeTab, setActiveTab] = useState<'general' | 'targeting' | 'abtest' | 'constraints'>('general');
   const [isCopied, setIsCopied] = useState<string | null>(null);
-  
-  // Virtual Database Table
+  const [notificationToast, setNotificationToast] = useState<{msg: string, type: 'email' | 'whatsapp'} | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [ghostLinks, setGhostLinks] = useState<GhostLink[]>([]);
 
-  // --- Form State (Temporary holders for creation) ---
-  
+  // --- Form State ---
   const [formData, setFormData] = useState({
       targetUrl: '',
       slug: '',
@@ -131,7 +92,6 @@ const GhostLinkPage = () => {
       notifyWhatsapp: false
   });
 
-  // Advanced Rules UI State
   const [geoRules, setGeoRules] = useState<{id: string, country: string, url: string}[]>([]);
   const [deviceRules, setDeviceRules] = useState<{id: string, device: string, url: string}[]>([]);
   const [splitVariants, setSplitVariants] = useState<{id: string, url: string, percent: number}[]>([]);
@@ -141,11 +101,36 @@ const GhostLinkPage = () => {
   const [simContext, setSimContext] = useState({ country: 'US', device: 'mobile' });
   const [simResult, setSimResult] = useState<{url: string, reason: string, logs: string[], method?: string, type?: string} | null>(null);
   const [activeLinkForSim, setActiveLinkForSim] = useState<GhostLink | null>(null);
+  const [isSimulating, setIsSimulating] = useState(false);
 
   // --- Functions ---
 
+  const fetchLinks = async () => {
+      try {
+          const res = await fetch(`${API_URL}/api/ghost-links`);
+          if (res.ok) {
+              const data = await res.json();
+              setGhostLinks(data);
+          }
+      } catch (e) {
+          console.error("Failed to fetch ghost links");
+      }
+  };
+
+  useEffect(() => {
+      fetchLinks();
+      const interval = setInterval(fetchLinks, 10000); // Polling for click updates
+      return () => clearInterval(interval);
+  }, []);
+
+  const showNotification = (msg: string, type: 'email' | 'whatsapp') => {
+      setNotificationToast({ msg, type });
+      setTimeout(() => setNotificationToast(null), 4000);
+  };
+
   const validateUrl = (url: string) => {
     if (!url) return false;
+    if (url.trim().toLowerCase().startsWith('javascript:')) return false;
     try {
       new URL(url);
       return true;
@@ -154,15 +139,12 @@ const GhostLinkPage = () => {
     }
   };
 
-  // Main Processing Function
-  const handleGenerate = () => {
-      // 1. Validation
+  const handleGenerate = async () => {
       if (!validateUrl(formData.targetUrl)) return alert("Please enter a valid Target URL.");
       if (splitVariants.some(v => !validateUrl(v.url))) return alert("Invalid URL in A/B variants.");
       if (geoRules.some(r => !validateUrl(r.url))) return alert("Invalid URL in Geo rules.");
       if (deviceRules.some(r => !validateUrl(r.url))) return alert("Invalid URL in Device rules.");
 
-      // Calculate weights
       const totalVariantWeight = splitVariants.reduce((sum, v) => sum + v.percent, 0);
       if (totalVariantWeight > 100) return alert("Total split weight cannot exceed 100%.");
       
@@ -170,7 +152,6 @@ const GhostLinkPage = () => {
       const destination_urls = [formData.targetUrl, ...splitVariants.map(v => v.url)];
       const split_weights = [primaryWeight, ...splitVariants.map(v => v.percent)];
 
-      // 2. Data Construction
       const newLink: GhostLink = {
           id: Date.now().toString(),
           slug: formData.slug || Math.random().toString(36).substring(7),
@@ -180,162 +161,104 @@ const GhostLinkPage = () => {
           status: 'active',
           category: formData.category,
           tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
-          
           click_total: 0,
           click_today: 0,
           click_month: 0,
-          
           schedule_start: formData.scheduleStart || null,
           schedule_end: formData.scheduleEnd || null,
           click_limit: formData.clickLimit ? parseInt(formData.clickLimit) : null,
-          
           geo_redirects: geoRules.reduce((acc, rule) => ({...acc, [rule.country]: rule.url}), {}),
           device_redirects: deviceRules.reduce((acc, rule) => ({...acc, [rule.device]: rule.url}), {}),
-          
           utm_enabled: formData.utmEnabled,
           utm_params: {
               source: formData.utmSource,
               medium: formData.utmMedium,
               campaign: formData.utmCampaign
           },
-          
           notification_email: formData.notifyEmail,
           notification_whatsapp: formData.notifyWhatsapp,
           created_at: new Date().toISOString()
       };
 
-      // 3. Store in Virtual DB
-      setGhostLinks([newLink, ...ghostLinks]);
-      
-      // 4. Reset Form
-      setFormData({
-          targetUrl: '', slug: '', redirectType: '307', category: 'General', tags: '',
-          scheduleStart: '', scheduleEnd: '', clickLimit: '', utmEnabled: false,
-          utmSource: '', utmMedium: '', utmCampaign: '', notifyEmail: false, notifyWhatsapp: false
-      });
-      setGeoRules([]);
-      setDeviceRules([]);
-      setSplitVariants([]);
-      setActiveTab('general');
-  };
-
-  // --- Strict Redirection Execution Logic ---
-  const resolveRedirect = (link: GhostLink, context: { country: string, device: string }) => {
-      const logs: string[] = [];
-      const now = new Date();
-
-      // 1. Slug Lookup
-      logs.push(`1. Lookup slug: "/${link.slug}" (Found)`);
-
-      // 2. Not Found Check (Implicitly skipped as we found the link)
-      
-      // 3. Status Check
-      if (link.status === 'disabled') {
-          logs.push(`3. Status is DISABLED. Blocking request.`);
-          return { url: 'Blocked', reason: 'Link is disabled', logs, type: 'error' };
-      }
-      logs.push(`3. Status is ACTIVE.`);
-
-      // 4. Time-based Rules
-      if (link.schedule_start && new Date(link.schedule_start) > now) {
-          logs.push(`4. Schedule Start: Future date detected (${link.schedule_start}). Blocking.`);
-          return { url: 'Blocked', reason: 'Scheduled for future', logs, type: 'error' };
-      }
-      if (link.schedule_end && new Date(link.schedule_end) < now) {
-          // In a real backend, we'd update DB status to expired here
-          logs.push(`4. Schedule End: Expired (${link.schedule_end}). Marking expired. Blocking.`);
-          return { url: 'Blocked', reason: 'Link expired', logs, type: 'error' };
-      }
-      logs.push(`4. Schedule check passed.`);
-
-      // 5. Click Limit Rule
-      if (link.click_limit !== null && link.click_total >= link.click_limit) {
-          logs.push(`5. Click Limit: ${link.click_total}/${link.click_limit} reached. Blocking.`);
-          return { url: 'Blocked', reason: 'Click limit reached', logs, type: 'error' };
-      }
-      logs.push(`5. Click limit check passed (${link.click_total}/${link.click_limit || '∞'}).`);
-
-      // 6. Device Redirection
-      if (link.device_redirects[context.device]) {
-          logs.push(`6. Device Rule (${context.device}): Redirecting to ${link.device_redirects[context.device]}`);
-          return finalizeUrl(link.device_redirects[context.device], link, logs, `Device Rule (${context.device})`);
-      }
-      logs.push(`6. Device check: No specific rule for ${context.device}.`);
-
-      // 7. Geo Redirection
-      if (link.geo_redirects[context.country]) {
-          logs.push(`7. Geo Rule (${context.country}): Redirecting to ${link.geo_redirects[context.country]}`);
-          return finalizeUrl(link.geo_redirects[context.country], link, logs, `Geo Rule (${context.country})`);
-      }
-      logs.push(`7. Geo check: No specific rule for ${context.country}.`);
-
-      // 8. Split Testing
-      let finalUrl = link.destination_urls[0];
-      if (link.destination_urls.length > 1) {
-          const totalWeight = link.split_weights.reduce((a,b) => a+b, 0); 
-          let random = Math.floor(Math.random() * totalWeight); 
-          let selectedIndex = 0;
+      setIsLoading(true);
+      try {
+          const res = await fetch(`${API_URL}/api/ghost-links`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(newLink)
+          });
           
-          for (let i = 0; i < link.split_weights.length; i++) {
-              if (random < link.split_weights[i]) {
-                  selectedIndex = i;
-                  break;
-              }
-              random -= link.split_weights[i];
+          if (res.ok) {
+              setGhostLinks([newLink, ...ghostLinks]);
+              if (newLink.notification_email) showNotification(`Link /${newLink.slug} Created`, 'email');
+              if (newLink.notification_whatsapp) setTimeout(() => showNotification(`Link /${newLink.slug} Created`, 'whatsapp'), 1500);
+              
+              // Reset Form
+              setFormData({
+                  targetUrl: '', slug: '', redirectType: '307', category: 'General', tags: '',
+                  scheduleStart: '', scheduleEnd: '', clickLimit: '', utmEnabled: false,
+                  utmSource: '', utmMedium: '', utmCampaign: '', notifyEmail: false, notifyWhatsapp: false
+              });
+              setGeoRules([]);
+              setDeviceRules([]);
+              setSplitVariants([]);
+              setActiveTab('general');
           }
-          finalUrl = link.destination_urls[selectedIndex];
-          logs.push(`8. Split Testing: Weighted Random Choice -> Variant ${selectedIndex === 0 ? 'Main' : String.fromCharCode(64 + selectedIndex)} (${link.split_weights[selectedIndex]}%).`);
-      } else {
-          logs.push(`8. Split Testing: Single destination. Skipping.`);
+      } catch (e) {
+          alert("Failed to save link");
+      } finally {
+          setIsLoading(false);
       }
-
-      return finalizeUrl(finalUrl, link, logs, 'Default / Split Result');
   };
 
-  const finalizeUrl = (url: string, link: GhostLink, logs: string[], reason: string) => {
-      let finalUrl = url;
-
-      // 9. UTM Builder
-      if (link.utm_enabled) {
-          try {
-              const u = new URL(finalUrl);
-              if (link.utm_params.source) u.searchParams.set('utm_source', link.utm_params.source);
-              if (link.utm_params.medium) u.searchParams.set('utm_medium', link.utm_params.medium);
-              if (link.utm_params.campaign) u.searchParams.set('utm_campaign', link.utm_params.campaign);
-              finalUrl = u.toString();
-              logs.push(`9. UTM Builder: Appended parameters.`);
-          } catch(e) {
-              logs.push(`9. UTM Builder: Invalid URL, skipping append.`);
-          }
-      } else {
-          logs.push(`9. UTM Builder: Disabled.`);
-      }
-
-      // 10. Cloaking Check
-      if (link.redirect_type === 'cloak') {
-          logs.push(`10. Cloaking: Active. Rendering iframe mask.`);
-          return { url: finalUrl, reason, logs, type: 'cloak', method: 'IFrame Mask' };
-      }
-      logs.push(`10. Cloaking: Disabled.`);
-
-      // 11. Standard Redirect
-      logs.push(`11. Standard Redirect: Performing HTTP ${link.redirect_type} redirect.`);
-      return { url: finalUrl, reason, logs, type: 'redirect', method: `HTTP ${link.redirect_type}` };
-  };
-
-  const handleSimulate = () => {
-      if (!activeLinkForSim) return;
-      const result = resolveRedirect(activeLinkForSim, simContext);
-      setSimResult(result);
+  const handleToggleStatus = async (link: GhostLink) => {
+      const newStatus = link.status === 'active' ? 'disabled' : 'active';
+      const updatedLink = { ...link, status: newStatus };
       
-      // Update Analytics Simulation (Increment counters on success)
-      if (!result.url.startsWith('Blocked')) {
-          setGhostLinks(prev => prev.map(l => l.id === activeLinkForSim.id ? {
-              ...l,
-              click_total: l.click_total + 1,
-              click_today: l.click_today + 1,
-              click_month: l.click_month + 1
-          } : l));
+      try {
+          const res = await fetch(`${API_URL}/api/ghost-links`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(updatedLink)
+          });
+          
+          if (res.ok) {
+              setGhostLinks(prev => prev.map(l => l.id === link.id ? updatedLink : l));
+              const msg = `Status changed to ${newStatus.toUpperCase()}`;
+              if (link.notification_email) showNotification(msg, 'email');
+          }
+      } catch (e) {
+          console.error("Failed to update status");
+      }
+  };
+
+  const handleDelete = async (id: string) => {
+      if (!confirm("Are you sure?")) return;
+      try {
+          await fetch(`${API_URL}/api/ghost-links/${id}`, { method: 'DELETE' });
+          setGhostLinks(prev => prev.filter(l => l.id !== id));
+      } catch (e) {
+          console.error("Delete failed");
+      }
+  };
+
+  const handleSimulate = async () => {
+      if (!activeLinkForSim) return;
+      setIsSimulating(true);
+      setSimResult(null);
+      
+      try {
+          const res = await fetch(`${API_URL}/api/ghost-links/simulate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ linkId: activeLinkForSim.id, context: simContext })
+          });
+          const result = await res.json();
+          setSimResult(result);
+      } catch (e) {
+          setSimResult({ url: 'Error', reason: 'Simulation Failed', logs: ['API Error'], type: 'error' });
+      } finally {
+          setIsSimulating(false);
       }
   };
 
@@ -358,8 +281,7 @@ const GhostLinkPage = () => {
   const updateVariant = (id: string, f: string, v: any) => setSplitVariants(splitVariants.map(r => r.id === id ? {...r, [f]: v} : r));
   const removeVariant = (id: string) => setSplitVariants(splitVariants.filter(r => r.id !== id));
 
-  // Chart Data Preparation (Mock for UI based on virtual table total)
-  const totalClicks = ghostLinks.reduce((acc, l) => acc + l.click_total, 0);
+  const totalClicks = ghostLinks.reduce((acc, l) => acc + (l.click_total || 0), 0);
   const clickData = [
     { name: 'Mon', clicks: totalClicks * 0.1 },
     { name: 'Tue', clicks: totalClicks * 0.2 },
@@ -378,8 +300,23 @@ const GhostLinkPage = () => {
   };
 
   return (
-    <div className="max-w-[1600px] mx-auto space-y-8 animate-fade-in pb-12 font-sans">
+    <div className="max-w-[1600px] mx-auto space-y-8 animate-fade-in pb-12 font-sans relative">
       
+      {/* Notifications Toast */}
+      {notificationToast && (
+          <div className="fixed top-24 right-8 z-[100] animate-in slide-in-from-right-10 fade-in duration-300">
+              <div className="bg-white dark:bg-[#111] border border-gray-200 dark:border-gray-800 rounded-xl shadow-2xl p-4 flex items-center gap-3 min-w-[300px]">
+                  <div className={`p-2 rounded-full ${notificationToast.type === 'email' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'}`}>
+                      {notificationToast.type === 'email' ? <Mail size={18} /> : <MessageCircle size={18} />}
+                  </div>
+                  <div>
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-white">Notification Sent</h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{notificationToast.msg}</p>
+                  </div>
+              </div>
+          </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -557,7 +494,7 @@ const GhostLinkPage = () => {
                                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3">Notifications</label>
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                                        <span className="text-xs font-medium dark:text-gray-300 flex items-center gap-2"><Mail size={14}/> Email Me (on expire/limit)</span>
+                                        <span className="text-xs font-medium dark:text-gray-300 flex items-center gap-2"><Mail size={14}/> Email Me (on create/expire/limit)</span>
                                         <button onClick={() => setFormData({...formData, notifyEmail: !formData.notifyEmail})} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${formData.notifyEmail ? 'bg-[#f97316]' : 'bg-gray-300 dark:bg-gray-700'}`}><span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition ${formData.notifyEmail ? 'translate-x-4' : 'translate-x-1'}`} /></button>
                                     </div>
                                     <div className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
@@ -572,9 +509,10 @@ const GhostLinkPage = () => {
                     <div className="mt-8 pt-4 border-t border-gray-100 dark:border-gray-800">
                         <button 
                             onClick={handleGenerate}
-                            className="w-full bg-[#f97316] hover:bg-[#ea580c] text-white dark:text-black font-bold py-3.5 rounded-xl shadow-lg shadow-[#f97316]/20 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm"
+                            disabled={isLoading}
+                            className="w-full bg-[#f97316] hover:bg-[#ea580c] text-white dark:text-black font-bold py-3.5 rounded-xl shadow-lg shadow-[#f97316]/20 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm disabled:opacity-50"
                         >
-                            <Ghost size={18} /> Create Smart Link
+                            {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Ghost size={18} />} Create Smart Link
                         </button>
                     </div>
                 </div>
@@ -678,11 +616,21 @@ const GhostLinkPage = () => {
                                         <span className="font-mono text-sm font-bold text-gray-900 dark:text-white">{link.click_total}</span>
                                     </td>
                                     <td className="px-5 py-3">
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${link.status === 'active' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 border-gray-200 dark:border-gray-700'}`}>
-                                            {link.status}
-                                        </span>
+                                        <button 
+                                            onClick={() => handleToggleStatus(link)}
+                                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border transition-all ${link.status === 'active' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 hover:bg-green-200 dark:hover:bg-green-900/50' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                                        >
+                                            {link.status === 'active' ? 'Active' : 'Disabled'} <Power size={10} />
+                                        </button>
                                     </td>
                                     <td className="px-5 py-3 text-right flex justify-end gap-1">
+                                        <button 
+                                            onClick={() => handleDelete(link.id)}
+                                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                            title="Delete Link"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
                                         <button 
                                             onClick={() => { setActiveLinkForSim(link); setSimModalOpen(true); setSimResult(null); }}
                                             className="p-1.5 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
@@ -691,7 +639,7 @@ const GhostLinkPage = () => {
                                             <Play size={14} />
                                         </button>
                                         <button 
-                                            onClick={() => handleCopy(link.id, `https://g.whopify.io/${link.slug}`)}
+                                            onClick={() => handleCopy(link.id, `${API_URL}/g/${link.slug}`)}
                                             className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                                             title="Copy Link"
                                         >
@@ -777,7 +725,9 @@ const GhostLinkPage = () => {
 
                   <div className="p-6 border-t border-gray-200 dark:border-gray-800 flex gap-3 bg-gray-50 dark:bg-[#161616]">
                       <button onClick={() => setSimModalOpen(false)} className="flex-1 py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Close</button>
-                      <button onClick={handleSimulate} className="flex-1 py-3 rounded-xl bg-[#f97316] text-white font-bold text-sm hover:bg-[#ea580c] shadow-lg transition-all active:scale-95">Run Test</button>
+                      <button onClick={handleSimulate} disabled={isSimulating} className="flex-1 py-3 rounded-xl bg-[#f97316] text-white font-bold text-sm hover:bg-[#ea580c] shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
+                          {isSimulating ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />} Run Test
+                      </button>
                   </div>
               </div>
           </div>

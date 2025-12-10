@@ -4,6 +4,8 @@
 
 
 
+
+
 import express from 'express';
 import Stripe from 'stripe';
 import cors from 'cors';
@@ -22,14 +24,14 @@ app.use(cors());
 app.use(express.json());
 
 // --- Mock Database Implementation (Local JSON File) ---
-// This ensures the app runs without a complex DB setup for this demo.
 const DB_FILE = path.resolve('local_db.json');
 
 const loadDb = () => {
   const defaultDb = { 
     checkouts: [], 
     orders: [], 
-    customers: [], 
+    customers: [],
+    ghostLinks: [],
     settings: { 
       currency: 'USD', 
       stripeEnabled: false,
@@ -130,6 +132,45 @@ const db = {
     const data = loadDb();
     data.settings = settings;
     saveDb(data);
+  },
+  // Ghost Link Methods
+  getAllGhostLinks: async () => {
+    const data = loadDb();
+    return data.ghostLinks || [];
+  },
+  getGhostLinkBySlug: async (slug: string) => {
+    const data = loadDb();
+    return (data.ghostLinks || []).find((l: any) => l.slug === slug);
+  },
+  saveGhostLink: async (link: any) => {
+    const data = loadDb();
+    if (!data.ghostLinks) data.ghostLinks = [];
+    const idx = data.ghostLinks.findIndex((l: any) => l.id === link.id);
+    if (idx >= 0) {
+      data.ghostLinks[idx] = link;
+    } else {
+      data.ghostLinks.unshift(link);
+    }
+    saveDb(data);
+  },
+  deleteGhostLink: async (id: string) => {
+    const data = loadDb();
+    if (data.ghostLinks) {
+        data.ghostLinks = data.ghostLinks.filter((l: any) => l.id !== id);
+        saveDb(data);
+    }
+  },
+  incrementGhostLinkClicks: async (id: string) => {
+      const data = loadDb();
+      if (data.ghostLinks) {
+          const idx = data.ghostLinks.findIndex((l: any) => l.id === id);
+          if (idx >= 0) {
+              data.ghostLinks[idx].click_total += 1;
+              data.ghostLinks[idx].click_today += 1;
+              data.ghostLinks[idx].click_month += 1;
+              saveDb(data);
+          }
+      }
   }
 };
 
@@ -141,7 +182,6 @@ const ensureStripe = async () => {
   return null;
 };
 
-// Helper for PayPal Token
 const getPayPalAccessToken = async () => {
   const settings = await db.getSettings();
   const clientId = settings.paypalClientId;
@@ -151,36 +191,139 @@ const getPayPalAccessToken = async () => {
 
   if (!clientId || !clientSecret) return null;
 
-  const auth = Buffer.from(clientId + ":" + clientSecret).toString("base64");
-  const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
-    method: "POST",
-    body: "grant_type=client_credentials",
-    headers: {
-      Authorization: `Basic ${auth}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-  });
+  try {
+    const auth = Buffer.from(clientId + ":" + clientSecret).toString("base64");
+    const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
+      method: "POST",
+      body: "grant_type=client_credentials",
+      headers: {
+        Authorization: `Basic ${auth}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    });
 
-  const data: any = await response.json();
-  return { accessToken: data.access_token, baseUrl };
+    const data: any = await response.json();
+    return { accessToken: data.access_token, baseUrl };
+  } catch (e) {
+    console.error("PayPal Auth Error", e);
+    return null;
+  }
 };
+
+// --- Ghost Link Logic ---
+
+const detectContext = (req: express.Request) => {
+    const userAgent = req.headers['user-agent'] || '';
+    let device = 'desktop';
+    if (/mobile/i.test(userAgent)) device = 'mobile';
+    if (/tablet|ipad/i.test(userAgent)) device = 'tablet';
+
+    // Simple IP-based geo simulation or header check
+    // In production, use MaxMind or Cloudflare headers
+    const country = (req.headers['cf-ipcountry'] as string) || 'US'; 
+
+    return { device, country };
+};
+
+const resolveGhostRedirect = (link: any, context: { country: string, device: string }) => {
+    const logs: string[] = [];
+    const now = new Date();
+
+    logs.push(`1. Analyzing Link: /${link.slug}`);
+
+    // Status Check
+    if (link.status === 'disabled') {
+        logs.push(`2. Status DISABLED. Blocked.`);
+        return { url: 'Blocked', reason: 'Link is disabled', logs, type: 'error' };
+    }
+    
+    // Schedule Check
+    if (link.schedule_start && new Date(link.schedule_start) > now) {
+        logs.push(`3. Scheduled for future (${link.schedule_start}). Blocked.`);
+        return { url: 'Blocked', reason: 'Not yet active', logs, type: 'error' };
+    }
+    if (link.schedule_end && new Date(link.schedule_end) < now) {
+        logs.push(`3. Expired on ${link.schedule_end}. Blocked.`);
+        return { url: 'Blocked', reason: 'Link expired', logs, type: 'error' };
+    }
+
+    // Limit Check
+    if (link.click_limit !== null && link.click_total >= link.click_limit) {
+        logs.push(`4. Click limit (${link.click_limit}) reached. Blocked.`);
+        return { url: 'Blocked', reason: 'Click limit reached', logs, type: 'error' };
+    }
+
+    // Device Rules
+    if (link.device_redirects && link.device_redirects[context.device]) {
+        const target = link.device_redirects[context.device];
+        logs.push(`5. Matched Device Rule (${context.device}) -> ${target}`);
+        return finalizeUrl(target, link, logs, `Device Rule: ${context.device}`);
+    }
+
+    // Geo Rules
+    if (link.geo_redirects && link.geo_redirects[context.country]) {
+        const target = link.geo_redirects[context.country];
+        logs.push(`6. Matched Geo Rule (${context.country}) -> ${target}`);
+        return finalizeUrl(target, link, logs, `Geo Rule: ${context.country}`);
+    }
+
+    // Split Testing
+    let finalUrl = link.destination_urls[0];
+    if (link.destination_urls.length > 1 && link.split_weights) {
+        const totalWeight = link.split_weights.reduce((a: number, b: number) => a+b, 0);
+        let random = Math.random() * totalWeight;
+        let selectedIndex = 0;
+        for (let i = 0; i < link.split_weights.length; i++) {
+            if (random < link.split_weights[i]) {
+                selectedIndex = i;
+                break;
+            }
+            random -= link.split_weights[i];
+        }
+        finalUrl = link.destination_urls[selectedIndex];
+        logs.push(`7. Split Test: Selected Variant ${selectedIndex} (${link.split_weights[selectedIndex]} weight)`);
+    } else {
+        logs.push(`7. Using Default Destination`);
+    }
+
+    return finalizeUrl(finalUrl, link, logs, 'Default');
+};
+
+const finalizeUrl = (url: string, link: any, logs: string[], reason: string) => {
+    let finalUrl = url;
+    
+    // UTM Appending
+    if (link.utm_enabled && link.utm_params) {
+        try {
+            const u = new URL(finalUrl);
+            if (link.utm_params.source) u.searchParams.set('utm_source', link.utm_params.source);
+            if (link.utm_params.medium) u.searchParams.set('utm_medium', link.utm_params.medium);
+            if (link.utm_params.campaign) u.searchParams.set('utm_campaign', link.utm_params.campaign);
+            finalUrl = u.toString();
+            logs.push(`8. Appended UTM parameters.`);
+        } catch(e) {
+            logs.push(`8. Failed to append UTMs (Invalid URL).`);
+        }
+    }
+
+    return { url: finalUrl, reason, logs, type: 'redirect', method: `HTTP ${link.redirect_type}` };
+};
+
 
 // --- Endpoints ---
 
-// 1. Get All Checkouts
+// Checkouts
 app.get('/api/checkouts', async (req, res) => {
   const checkouts = await db.getAllCheckouts();
   res.json(checkouts);
 });
 
-// 2. Save Checkout
 app.post('/api/checkouts', async (req, res) => {
   const { id, data } = req.body;
   await db.updateCheckout(id, data);
   res.json({ success: true });
 });
 
-// 3. Delete Checkout
 app.delete('/api/checkouts/:id', async (req, res) => {
     const data = loadDb();
     data.checkouts = data.checkouts.filter((c: any) => c.id !== req.params.id);
@@ -188,19 +331,18 @@ app.delete('/api/checkouts/:id', async (req, res) => {
     res.json({ success: true });
 });
 
-// 4. Get Settings
+// Settings
 app.get('/api/settings', async (req, res) => {
   const settings = await db.getSettings();
   res.json(settings);
 });
 
-// 5. Save Settings
 app.post('/api/settings', async (req, res) => {
   await db.updateSettings(req.body);
   res.json({ success: true });
 });
 
-// 6. Public Config (Safe subset for frontend)
+// Public Config
 app.get('/api/public-config/:checkoutId', async (req, res) => {
   const checkout = await db.getCheckout(req.params.checkoutId);
   const settings = await db.getSettings();
@@ -210,9 +352,9 @@ app.get('/api/public-config/:checkoutId', async (req, res) => {
   res.json({
     checkout,
     stripeEnabled: settings.stripeEnabled,
-    stripePublishableKey: settings.stripePublishableKey, // Safe to expose
+    stripePublishableKey: settings.stripePublishableKey,
     paypalEnabled: settings.paypalEnabled,
-    paypalClientId: settings.paypalClientId, // Safe to expose
+    paypalClientId: settings.paypalClientId,
     paypalMode: settings.paypalMode,
     currency: settings.currency || 'USD',
     whatsappEnabled: settings.whatsappEnabled,
@@ -229,30 +371,22 @@ app.get('/api/public-config/:checkoutId', async (req, res) => {
   });
 });
 
-// 7. Create Payment Intent
+// Payments
 app.post("/api/create-payment-intent", async (req, res) => {
   const stripe = await ensureStripe();
-  if (!stripe)
-    return res.status(500).json({ error: "Stripe not configured" });
+  if (!stripe) return res.status(500).json({ error: "Stripe not configured" });
 
   const { checkoutId, customerEmail, selectedUpsellIds } = req.body;
-
-  if (!checkoutId) {
-    return res.status(400).json({ error: "Missing checkoutId" });
-  }
+  if (!checkoutId) return res.status(400).json({ error: "Missing checkoutId" });
 
   const checkout = await db.getCheckout(checkoutId);
   if (!checkout) return res.status(404).json({ error: "Checkout not found" });
-
-  if (!Array.isArray(checkout.products) || checkout.products.length === 0)
-    return res.status(400).json({ error: "Checkout contains no products" });
 
   let total = 0;
   const settings = await db.getSettings();
   const currencyKey = (settings.currency || 'USD').toLowerCase();
 
-  // Calculate Base Product Total
-  for (const p of checkout.products) {
+  for (const p of checkout.products || []) {
     let price = 0;
     if (p.pricing?.oneTime?.enabled) {
       price = p.pricing.oneTime.prices[currencyKey] ?? p.pricing.oneTime.prices.usd;
@@ -263,15 +397,12 @@ app.post("/api/create-payment-intent", async (req, res) => {
     } else {
       price = p.price ?? 0;
     }
-    
     if (price == null || isNaN(price)) price = 0;
     total += price;
   }
 
-  // Handle Multiple Upsells Calculation
   if (Array.isArray(selectedUpsellIds) && selectedUpsellIds.length > 0) {
       const allUpsells = [...(checkout.upsells || []), ...(checkout.upsell?.enabled ? [checkout.upsell] : [])];
-      
       selectedUpsellIds.forEach((id: string) => {
           const found = allUpsells.find((u: any) => u.id === id && u.enabled);
           if (found) {
@@ -289,7 +420,6 @@ app.post("/api/create-payment-intent", async (req, res) => {
       receipt_email: customerEmail,
       metadata: {
         checkout_id: checkoutId,
-        // Stripe requires metadata values to be strings
         upsells_count: (Array.isArray(selectedUpsellIds) ? selectedUpsellIds.length : 0).toString()
       },
     });
@@ -301,13 +431,9 @@ app.post("/api/create-payment-intent", async (req, res) => {
   }
 });
 
-// 8. Create Manual Order
 app.post("/api/create-manual-order", async (req, res) => {
   const { checkoutId, selectedUpsellIds, customerEmail, customerName, customerPhone, customerCountry } = req.body;
-
-  if (!checkoutId) {
-    return res.status(400).json({ error: "Missing checkoutId" });
-  }
+  if (!checkoutId) return res.status(400).json({ error: "Missing checkoutId" });
 
   const checkout = await db.getCheckout(checkoutId);
   if (!checkout) return res.status(404).json({ error: "Checkout not found" });
@@ -316,7 +442,6 @@ app.post("/api/create-manual-order", async (req, res) => {
   let total = 0;
   const currencyKey = (settings.currency || 'USD').toLowerCase();
 
-  // Base Products
   for (const p of checkout.products || []) {
     let price = 0;
     if (p.pricing?.oneTime?.enabled) {
@@ -332,7 +457,6 @@ app.post("/api/create-manual-order", async (req, res) => {
     total += price;
   }
 
-  // Handle Multiple Upsells Calculation
   if (Array.isArray(selectedUpsellIds) && selectedUpsellIds.length > 0) {
       const allUpsells = [...(checkout.upsells || []), ...(checkout.upsell?.enabled ? [checkout.upsell] : [])];
       selectedUpsellIds.forEach((id: string) => {
@@ -344,8 +468,8 @@ app.post("/api/create-manual-order", async (req, res) => {
   }
 
   const orderId = "man_" + Math.random().toString(36).slice(2, 9);
-
-  // Ghost Referrer Handling
+  
+  // Ghost data from checkout settings
   let ghostMetadata = {};
   if (checkout.ghost && checkout.ghost.enabled) {
       ghostMetadata = {
@@ -377,7 +501,6 @@ app.post("/api/create-manual-order", async (req, res) => {
   res.json({ success: true, orderId });
 });
 
-// 9. Verify Stripe Payment (Records successful Stripe orders)
 app.post('/api/verify-payment', async (req, res) => {
   const { paymentIntentId } = req.body;
   if (!paymentIntentId) return res.status(400).json({ error: "Missing paymentIntentId" });
@@ -387,18 +510,13 @@ app.post('/api/verify-payment', async (req, res) => {
 
   try {
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    if (paymentIntent.status !== 'succeeded') return res.status(400).json({ error: "Payment not succeeded" });
 
-    if (paymentIntent.status !== 'succeeded') {
-       return res.status(400).json({ error: "Payment not succeeded" });
-    }
-
-    // Check if order already exists to prevent duplicates
     const dbData = loadDb();
     if (dbData.orders.some((o: any) => o.id === paymentIntent.id)) {
         return res.json({ success: true, orderId: paymentIntent.id, message: "Order already recorded" });
     }
 
-    // Attempt to extract customer details from the latest charge
     let customerName = 'Guest';
     let customerEmail = paymentIntent.receipt_email || '';
     let customerCountry = '';
@@ -417,7 +535,7 @@ app.post('/api/verify-payment', async (req, res) => {
 
     const checkoutId = paymentIntent.metadata.checkout_id;
     const upsellsCount = paymentIntent.metadata.upsells_count ? parseInt(paymentIntent.metadata.upsells_count) : 0;
-
+    
     // Fetch checkout for ghost config
     const checkout = await db.getCheckout(checkoutId);
     let ghostMetadata = {};
@@ -448,7 +566,6 @@ app.post('/api/verify-payment', async (req, res) => {
     };
 
     await db.saveOrder(order);
-
     res.json({ success: true, orderId: order.id });
 
   } catch (e: any) {
@@ -457,7 +574,6 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
-// 10. Verify Stripe Connection (Settings)
 app.post('/api/verify-connection', async (req, res) => {
     const key = req.headers['x-stripe-secret-key'] as string;
     if (!key) return res.status(400).json({ status: 'error', message: 'No key provided' });
@@ -473,7 +589,6 @@ app.post('/api/verify-connection', async (req, res) => {
     }
 });
 
-// 11. Create PayPal Order
 app.post("/api/create-paypal-order", async (req, res) => {
   const { checkoutId, selectedUpsellIds } = req.body;
   if (!checkoutId) return res.status(400).json({ error: "Missing checkoutId" });
@@ -482,9 +597,9 @@ app.post("/api/create-paypal-order", async (req, res) => {
   if (!checkout) return res.status(404).json({ error: "Checkout not found" });
 
   const settings = await db.getSettings();
+  let total = 0;
   const currencyKey = (settings.currency || 'USD').toLowerCase();
   
-  let total = 0;
   for (const p of checkout.products || []) {
     let price = 0;
     if (p.pricing?.oneTime?.enabled) {
@@ -513,133 +628,174 @@ app.post("/api/create-paypal-order", async (req, res) => {
   const auth = await getPayPalAccessToken();
   if (!auth || !auth.accessToken) return res.status(500).json({ error: "PayPal configuration error" });
 
-  const url = `${auth.baseUrl}/v2/checkout/orders`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${auth.accessToken}`,
-    },
-    body: JSON.stringify({
-      intent: "CAPTURE",
-      purchase_units: [
-        {
-          amount: {
-            currency_code: settings.currency,
-            value: total.toFixed(2),
-          },
-          description: `Order from ${checkout.name}`,
+  try {
+      const url = `${auth.baseUrl}/v2/checkout/orders`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.accessToken}`,
         },
-      ],
-    }),
-  });
+        body: JSON.stringify({
+          intent: "CAPTURE",
+          purchase_units: [
+            {
+              amount: {
+                currency_code: settings.currency,
+                value: total.toFixed(2),
+              },
+              description: `Order from ${checkout.name}`,
+            },
+          ],
+        }),
+      });
 
-  const data: any = await response.json();
-  res.json(data);
+      const data: any = await response.json();
+      res.json(data);
+  } catch (e) {
+      res.status(500).json({ error: "Failed to connect to PayPal" });
+  }
 });
 
-// 12. Capture PayPal Order
 app.post("/api/capture-paypal-order", async (req, res) => {
   const { orderID, checkoutId, customerEmail, customerName, customerCountry } = req.body;
   const auth = await getPayPalAccessToken();
   if (!auth || !auth.accessToken) return res.status(500).json({ error: "PayPal configuration error" });
 
-  const url = `${auth.baseUrl}/v2/checkout/orders/${orderID}/capture`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${auth.accessToken}`,
-    },
-  });
+  try {
+      const url = `${auth.baseUrl}/v2/checkout/orders/${orderID}/capture`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.accessToken}`,
+        },
+      });
 
-  const data: any = await response.json();
-  
-  if (data.status === 'COMPLETED') {
-      const settings = await db.getSettings();
-      const captureAmount = data.purchase_units[0].payments.captures[0].amount.value;
-      const captureCurrency = data.purchase_units[0].payments.captures[0].amount.currency_code;
+      const data: any = await response.json();
+      
+      if (data.status === 'COMPLETED') {
+          const settings = await db.getSettings();
+          const captureAmount = data.purchase_units[0].payments.captures[0].amount.value;
+          const captureCurrency = data.purchase_units[0].payments.captures[0].amount.currency_code;
 
-      // Fetch checkout for ghost config
-      const checkout = await db.getCheckout(checkoutId);
-      let ghostMetadata = {};
-      if (checkout && checkout.ghost && checkout.ghost.enabled) {
-          ghostMetadata = {
-              referrer: checkout.ghost.referrerMode === 'custom' ? checkout.ghost.customReferrer : (checkout.ghost.referrerMode === 'none' ? undefined : `https://${checkout.ghost.referrerMode}.com`),
-              utm_source: checkout.ghost.utmSource,
-              utm_medium: checkout.ghost.utmMedium,
-              utm_campaign: checkout.ghost.utmCampaign
+          // Fetch checkout for ghost config
+          const checkout = await db.getCheckout(checkoutId);
+          let ghostMetadata = {};
+          if (checkout && checkout.ghost && checkout.ghost.enabled) {
+              ghostMetadata = {
+                  referrer: checkout.ghost.referrerMode === 'custom' ? checkout.ghost.customReferrer : (checkout.ghost.referrerMode === 'none' ? undefined : `https://${checkout.ghost.referrerMode}.com`),
+                  utm_source: checkout.ghost.utmSource,
+                  utm_medium: checkout.ghost.utmMedium,
+                  utm_campaign: checkout.ghost.utmCampaign
+              };
+          }
+
+          const order = {
+            id: data.id,
+            amount: captureAmount,
+            amount_cents: Math.round(parseFloat(captureAmount) * 100),
+            currency: captureCurrency,
+            status: "succeeded",
+            date: new Date().toISOString().split('T')[0],
+            timestamp: new Date().toISOString(),
+            items: 1, 
+            checkoutId: checkoutId,
+            paymentProvider: "paypal",
+            customerEmail: customerEmail || data.payer?.email_address,
+            customerName: customerName || `${data.payer?.name?.given_name} ${data.payer?.name?.surname}`,
+            customerCountry: customerCountry || data.payer?.address?.country_code,
+            ...ghostMetadata
           };
+
+          await db.saveOrder(order);
+          res.json({ success: true, orderId: data.id });
+      } else {
+          res.status(400).json({ error: "Payment not completed" });
       }
-
-      const order = {
-        id: data.id,
-        amount: captureAmount,
-        amount_cents: Math.round(parseFloat(captureAmount) * 100),
-        currency: captureCurrency,
-        status: "succeeded",
-        date: new Date().toISOString().split('T')[0],
-        timestamp: new Date().toISOString(),
-        items: 1, // Simplified count
-        checkoutId: checkoutId,
-        paymentProvider: "paypal",
-        customerEmail: customerEmail || data.payer?.email_address,
-        customerName: customerName || `${data.payer?.name?.given_name} ${data.payer?.name?.surname}`,
-        customerCountry: customerCountry || data.payer?.address?.country_code,
-        ...ghostMetadata
-      };
-
-      await db.saveOrder(order);
-      res.json({ success: true, orderId: data.id });
-  } else {
-      res.status(400).json({ error: "Payment not completed" });
+  } catch (e) {
+      res.status(500).json({ error: "PayPal Capture Error" });
   }
 });
 
-// 13. Dashboard Analytics
-app.get('/api/analytics', async (req, res) => {
-    const data = loadDb();
-    const orders = data.orders || [];
-    
-    // Simple aggregation
-    const totalRevenue = orders.reduce((acc: number, o: any) => acc + parseFloat(o.amount || 0), 0);
-    const uniqueCustomers = new Set(orders.map((o: any) => o.customerEmail)).size;
-    
-    // Mock daily chart based on recent activity
-    const daily = Array.from({length: 7}, (_, i) => ({
-         name: new Date(Date.now() - (6-i)*86400000).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
-         revenue: orders.length > 0 ? totalRevenue / (orders.length > 7 ? orders.length : 7) : Math.floor(Math.random() * 500)
-    }));
-
-    res.json({
-        kpi: {
-            revenue: totalRevenue,
-            orders: orders.length,
-            customers: uniqueCustomers,
-            refunds: 0,
-            gross: totalRevenue 
-        },
-        charts: {
-            daily,
-            sources: [
-                { name: 'Direct', value: 70 },
-                { name: 'Social', value: 30 }
-            ],
-            countries: [
-                { name: 'US', value: 60 },
-                { name: 'MA', value: 40 }
-            ]
-        }
-    });
+// Ghost Link Endpoints
+app.get('/api/ghost-links', async (req, res) => {
+    const links = await db.getAllGhostLinks();
+    res.json(links);
 });
 
-// 14. Get Orders
+app.post('/api/ghost-links', async (req, res) => {
+    const link = req.body;
+    await db.saveGhostLink(link);
+    res.json({ success: true });
+});
+
+app.delete('/api/ghost-links/:id', async (req, res) => {
+    await db.deleteGhostLink(req.params.id);
+    res.json({ success: true });
+});
+
+app.post('/api/ghost-links/simulate', async (req, res) => {
+    const { linkId, context } = req.body;
+    const links = await db.getAllGhostLinks();
+    const link = links.find((l: any) => l.id === linkId);
+    
+    if (!link) return res.status(404).json({ error: 'Link not found' });
+    
+    // Simulate resolution
+    const result = resolveGhostRedirect(link, context);
+    res.json(result);
+});
+
+// The Actual Redirect Handler
+app.get('/g/:slug', async (req, res) => {
+    const { slug } = req.params;
+    const link = await db.getGhostLinkBySlug(slug);
+    
+    if (!link) {
+        return res.status(404).send('Link not found or expired.');
+    }
+
+    // Determine Context
+    const context = detectContext(req);
+    
+    // Execute Logic
+    const decision = resolveGhostRedirect(link, context);
+    
+    if (decision.type === 'error') {
+        return res.status(403).send(decision.reason);
+    }
+
+    // Increment Stats (Fire and forget)
+    db.incrementGhostLinkClicks(link.id);
+
+    // Perform Action
+    if (decision.type === 'cloak') {
+        // Simple IFrame Cloaking
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <title>${slug}</title>
+                    <style>body,html,iframe{margin:0;padding:0;height:100%;width:100%;border:none;overflow:hidden;}</style>
+                </head>
+                <body>
+                    <iframe src="${decision.url}" allowfullscreen></iframe>
+                </body>
+            </html>
+        `);
+    } else {
+        // Standard Redirect
+        res.redirect(parseInt(link.redirect_type) || 307, decision.url);
+    }
+});
+
+// Common Data Endpoints
 app.get('/api/orders', async (req, res) => {
     const data = loadDb();
     res.json(data.orders || []);
 });
 
-// 15. Get Customers
 app.get('/api/customers', async (req, res) => {
     const data = loadDb();
     res.json(data.customers || []);
@@ -647,5 +803,4 @@ app.get('/api/customers', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
-  console.log(`Database File: ${DB_FILE}`);
 });
